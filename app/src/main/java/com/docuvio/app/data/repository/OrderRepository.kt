@@ -43,7 +43,7 @@ class OrderRepository(
                 Log.e("ORDER_REPO", "Create order failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
                     401, 403 ->
-                        Result.Error("Session expired. Please login again.")
+                        Result.Error("Please try again later.")
 
                     500 ->
                         Result.Error("Server error. Please try again later.")
@@ -80,7 +80,7 @@ class OrderRepository(
                 Log.e("ORDER_REPO", "Upload file failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
                     401, 403 ->
-                        Result.Error("Session expired. Please login again.")
+                        Result.Error("Please login again.")
 
                     413 ->
                         Result.Error("File too large.")
