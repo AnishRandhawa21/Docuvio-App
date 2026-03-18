@@ -54,7 +54,7 @@ class OrderRepository(
             }
 
             val body = response.body()
-                ?: return Result.Error("Empty server response")
+                ?: return Result.Error("Empty server response.")
 
             Result.Success(body.data)
 

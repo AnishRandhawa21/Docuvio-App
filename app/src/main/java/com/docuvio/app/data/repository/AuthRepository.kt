@@ -3,11 +3,13 @@ package com.docuvio.app.data.repository
 import android.util.Log
 import com.docuvio.app.core.auth.TokenManager
 import com.docuvio.app.data.api.AuthApi
+import com.docuvio.app.data.api.UnregisterDeviceRequest
 import com.docuvio.app.data.model.LoginRequest
 import com.docuvio.app.data.model.LoginResponse
 import com.docuvio.app.data.model.Organisation
 import com.docuvio.app.data.model.SignupRequest
-
+import kotlinx.coroutines.tasks.await
+import com.docuvio.app.data.api.NotificationApi
 sealed class Result<out T> {
     data class Success<T>(val data: T) : Result<T>()
     data class Error(val message: String) : Result<Nothing>()
@@ -16,7 +18,8 @@ sealed class Result<out T> {
 
 class AuthRepository(
     private val authApi: AuthApi,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val notificationApi: NotificationApi
 ) {
 
     /* ---------------- LOGIN ---------------- */
@@ -153,6 +156,34 @@ class AuthRepository(
     /* ---------------- LOGOUT ---------------- */
 
     suspend fun logout() {
+
+        try {
+
+            val userId = tokenManager.getUserIdBlocking()
+
+            val token = com.google.firebase.messaging.FirebaseMessaging
+                .getInstance()
+                .token
+                .await()
+
+            if (userId != null) {
+
+                notificationApi.unregisterDevice(
+                    UnregisterDeviceRequest(
+                        userId = userId,
+                        token = token
+                    )
+                )
+            }
+
+            com.google.firebase.messaging.FirebaseMessaging
+                .getInstance()
+                .deleteToken()
+
+        } catch (e: Exception) {
+            Log.e("FCM", "Logout cleanup failed", e)
+        }
+
         tokenManager.clearAll()
     }
 }

@@ -9,10 +9,20 @@ data class RegisterDeviceRequest(
     val platform: String = "android"
 )
 
+data class UnregisterDeviceRequest(
+    val userId: String,
+    val token: String
+)
+
 interface NotificationApi {
 
     @POST("notifications/register-device")
     suspend fun registerDevice(
         @Body request: RegisterDeviceRequest
+    )
+
+    @POST("notifications/unregister-device")
+    suspend fun unregisterDevice(
+        @Body request: UnregisterDeviceRequest
     )
 }

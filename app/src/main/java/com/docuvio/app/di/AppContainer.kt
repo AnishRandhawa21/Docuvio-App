@@ -24,7 +24,7 @@ class AppContainer(context: Context, onUnauthorized: () -> Unit) {
     val notificationApi: NotificationApi = apiClient.createService()  // ✅ FIXED
 
     // Repositories
-    val authRepository = AuthRepository(authApi, tokenManager)
+    val authRepository = AuthRepository(authApi, tokenManager, notificationApi)
     val shopRepository = ShopRepository(shopApi)
     val orderRepository = OrderRepository(orderApi)
 }
