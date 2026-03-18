@@ -90,18 +90,23 @@ fun TermsScreen(
                 ) {
                     // Policies list
                     val policies = listOf(
-                        "Orders once paid are final and cannot be cancelled or refunded",
-                        "All uploaded files are automatically scanned for inappropriate or prohibited content; violations may result in immediate account suspension or permanent ban",
-                        "Customers must carry the pickup OTP to collect their prints",
-                        "Orders must be collected on the same day they are printed; uncollected orders will be discarded after the same day",
-                        "Neither the print shop nor Lovely Prints will be responsible for any loss, damage, or claims related to uncollected or discarded orders"
+                        "Orders, once paid, are final and cannot be cancelled or refunded.",
+                        "All uploaded files are subject to automated content screening. Uploading prohibited or inappropriate content may result in immediate account suspension or permanent termination.",
+                        "Customers must present the valid pickup OTP at the time of collection.",
+                        "Orders must be collected within the selected time slot. Failure to do so may result in delays or cancellation of service.",
+                        "Scheduled orders for the next day cannot be placed via the app between 12:00 AM and 6:00 AM. Additional charges will be applied for scheduled orders.",
+                        "All orders must be collected on the same day of printing before the closing time of the shop. Uncollected orders will be discarded after the end of the day without prior notice.",
+                        "Neither the print shop nor Docuvio shall be liable for any loss, damage, or claims arising from uncollected or discarded orders.",
+                        "Print shops are not responsible for errors resulting from incorrect, incomplete, or low-quality files submitted by users.",
+                        "Any misuse of the platform, including policy violations or abusive behavior, may lead to suspension or permanent termination of the account.",
+                        "Refunds shall be issued solely in the event of verified technical failures attributable to our system."
                     )
 
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
                         items(policies) { policy ->
