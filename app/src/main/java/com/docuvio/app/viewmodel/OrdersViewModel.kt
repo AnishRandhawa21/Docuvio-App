@@ -29,6 +29,10 @@ class OrdersViewModel(
     /** Prevents duplicate API calls */
     private var loadJob: Job? = null
 
+    init {
+        loadOrders()
+    }
+
     /**
      * Load orders for current logged-in user
      */

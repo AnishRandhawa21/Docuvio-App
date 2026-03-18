@@ -38,6 +38,7 @@ import com.docuvio.app.theme.Cream
 
 import android.app.Activity
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 // ── Which routes are stack screens (pushed on top of tabs) ───
 private val STACK_ROUTES = setOf(
@@ -215,9 +216,15 @@ fun AppNavHost(
             popExitTransition = {
                 tabExit(initialState.destination.route, targetState.destination.route)
             }
-        ) {
+        ) { backStackEntry ->
+
+            val viewModel: HomeViewModel = viewModel(
+                backStackEntry,
+                factory = HomeViewModelFactory(appContainer.shopRepository)
+            )
+
             HomeScreen(
-                viewModelFactory = HomeViewModelFactory(appContainer.shopRepository),
+                viewModel = viewModel,
                 tokenManager = appContainer.tokenManager,
                 notificationApi = appContainer.notificationApi,
                 onShopClick = { shopId ->
@@ -246,9 +253,15 @@ fun AppNavHost(
             popExitTransition = {
                 tabExit(initialState.destination.route, targetState.destination.route)
             }
-        ) {
+        ) { backStackEntry ->
+
+            val viewModel: OrdersViewModel = viewModel(
+                backStackEntry,
+                factory = OrdersViewModelFactory(appContainer.orderRepository)
+            )
+
             OrdersScreen(
-                viewModelFactory = OrdersViewModelFactory(appContainer.orderRepository)
+                viewModel = viewModel
             )
         }
 
@@ -266,9 +279,15 @@ fun AppNavHost(
             popExitTransition = {
                 tabExit(initialState.destination.route, targetState.destination.route)
             }
-        ) {
+        ) { backStackEntry ->
+
+            val viewModel: ProfileViewModel = viewModel(
+                backStackEntry,
+                factory = ProfileViewModelFactory(appContainer.authRepository)
+            )
+
             ProfileScreen(
-                viewModelFactory = ProfileViewModelFactory(appContainer.authRepository),
+                viewModel = viewModel,
                 tokenManager = appContainer.tokenManager,
                 onLogout = {
                     navController.navigate(Routes.Login.route) {

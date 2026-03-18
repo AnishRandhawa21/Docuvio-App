@@ -11,10 +11,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.docuvio.app.core.auth.TokenManager
 import com.docuvio.app.viewmodel.ProfileViewModel
-import com.docuvio.app.viewmodel.ProfileViewModelFactory
 import com.docuvio.app.theme.AlmostBlack // ADDED: Import theme colors
 import com.docuvio.app.theme.Cream // ADDED: Import theme colors
 import com.docuvio.app.theme.LimeGreen // ADDED: Import theme colors
@@ -25,10 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
-import com.docuvio.app.theme.Blue
+
 import com.docuvio.app.theme.DarkBlue
 import android.app.Activity
 import androidx.core.view.WindowCompat
@@ -37,14 +33,12 @@ import com.docuvio.app.BuildConfig
 
 @Composable
 fun ProfileScreen(
-
-    viewModelFactory: ProfileViewModelFactory,
+    viewModel: ProfileViewModel,
     tokenManager: TokenManager,
     onLogout: () -> Unit,
     onDeleteClick: () -> Unit,
     onFeedbackClick: () -> Unit
 ) {
-    val viewModel: ProfileViewModel = viewModel(factory = viewModelFactory)
     val userName by tokenManager.userNameFlow.collectAsState(initial = "User")
     var showLogoutDialog by remember { mutableStateOf(false) }
 

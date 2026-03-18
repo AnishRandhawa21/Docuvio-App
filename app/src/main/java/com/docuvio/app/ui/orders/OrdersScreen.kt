@@ -33,12 +33,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.docuvio.app.data.model.Order
 import com.docuvio.app.theme.Inter
 import com.docuvio.app.utils.formatOrderDate
 import com.docuvio.app.viewmodel.OrdersViewModel
-import com.docuvio.app.viewmodel.OrdersViewModelFactory
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -60,7 +58,6 @@ import com.docuvio.app.theme.OffWhite // ADDED: Import theme colors
 import com.docuvio.app.theme.SoftPink
 import androidx.compose.ui.zIndex
 import com.docuvio.app.theme.CoralRed
-import com.docuvio.app.theme.DarkGreen
 import com.docuvio.app.ui.order.utils.formatPickupDateTime
 
 
@@ -70,20 +67,9 @@ import com.docuvio.app.ui.order.utils.formatPickupDateTime
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersScreen(
-    viewModelFactory: OrdersViewModelFactory
+    viewModel: OrdersViewModel
 ) {
-
-    val viewModel: OrdersViewModel = viewModel(factory = viewModelFactory)
     val uiState by viewModel.uiState.collectAsState()
-
-    LaunchedEffect(key1 = true) {
-        if (uiState.currentOrders.isEmpty() &&
-            uiState.orderHistory.isEmpty()
-        ) {
-            viewModel.loadOrders()
-        }
-    }
-
 
     val pullToRefreshState = rememberPullToRefreshState()
 

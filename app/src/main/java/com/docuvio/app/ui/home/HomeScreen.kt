@@ -24,12 +24,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.docuvio.app.R
 import com.docuvio.app.data.model.Shop
 import com.docuvio.app.theme.Inter
 import com.docuvio.app.viewmodel.HomeViewModel
-import com.docuvio.app.viewmodel.HomeViewModelFactory
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -43,9 +41,7 @@ import com.docuvio.app.theme.AlmostBlack
 import com.docuvio.app.theme.Cream
 import com.docuvio.app.theme.LimeGreen
 import com.docuvio.app.theme.MediumGray
-import com.docuvio.app.theme.NewGreen
 import com.docuvio.app.theme.OffWhite
-import com.docuvio.app.theme.White
 import com.docuvio.app.utils.ShopStatusResolver
 import kotlinx.coroutines.launch
 
@@ -55,7 +51,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModelFactory: HomeViewModelFactory,
+    viewModel: HomeViewModel,
     tokenManager: com.docuvio.app.core.auth.TokenManager,
     notificationApi: com.docuvio.app.data.api.NotificationApi,
     onShopClick: (String) -> Unit,
@@ -69,7 +65,6 @@ fun HomeScreen(
             registerFcmToken(userId, notificationApi)
         }
     }
-    val viewModel: HomeViewModel = viewModel(factory = viewModelFactory)
     val uiState by viewModel.uiState.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
 
