@@ -214,14 +214,6 @@ fun OrdersScreen(
                                 painter = painterResource(id = R.drawable.no_order),
                                 contentDescription = "NO_Order",
                             )
-//                            Text(
-//                                text =
-//                                    if (selectedTab == 0)
-//                                        "No current orders"
-//                                    else
-//                                        "No order history",
-//                                color = MediumGray // CHANGED: from Color.Gray to MediumGray
-//                            )
                         }
                     }
 
