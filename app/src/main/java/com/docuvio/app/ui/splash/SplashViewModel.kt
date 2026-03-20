@@ -21,16 +21,17 @@ class SplashViewModel(
 
     private fun checkAuthenticationStatus() {
         viewModelScope.launch {
-            // Show splash screen for at least 2 seconds
+
+            // Optional splash delay (for animation)
             delay(2000)
 
-            // Check if user is logged in
-            val token = tokenManager.getTokenBlocking()
+            val isValidSession = tokenManager.isSessionValid()
 
-            _navigationDestination.value = if (token.isNullOrEmpty()) {
-                "login"
+            if (isValidSession) {
+                _navigationDestination.value = "main"
             } else {
-                "main"
+                tokenManager.clearAll() // clear expired session
+                _navigationDestination.value = "login"
             }
         }
     }

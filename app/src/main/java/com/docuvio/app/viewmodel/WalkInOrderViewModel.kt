@@ -12,6 +12,7 @@ import java.io.File
 
 data class WalkInOrderUiState(
     val isLoading: Boolean = false,
+    val pageCount: Int = 0,
     val uploadingFile: Boolean = false,
     val uploadProgress: Int = 0,
     val selectedFile: File? = null,
@@ -39,8 +40,11 @@ class WalkInOrderViewModel(
         _uiState.value = _uiState.value.copy(notes = value)
     }
 
-    fun setFile(file: File) {
-        _uiState.value = _uiState.value.copy(selectedFile = file)
+    fun setFile(file: File, pageCount: Int) {
+        _uiState.value = _uiState.value.copy(
+            selectedFile = file,
+            pageCount = pageCount
+        )
     }
 
     fun clearError() {

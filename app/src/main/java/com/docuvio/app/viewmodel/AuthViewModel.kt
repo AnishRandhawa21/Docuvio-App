@@ -12,9 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
-
 import com.docuvio.app.data.model.Organisation
-
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -24,7 +22,6 @@ data class AuthUiState(
     val error: String? = null,
     val isSuccess: Boolean = false
 )
-
 
 class AuthViewModel(
     private val authRepository: AuthRepository,
@@ -36,13 +33,29 @@ class AuthViewModel(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     init {
-        loadOrganisations()
+        // ✅ Only load if session valid
+        if (tokenManager.isSessionValid()) {
+            loadOrganisations()
+        }
+    }
+
+    fun isSessionValid(): Boolean {
+        return tokenManager.isSessionValid()
     }
 
     /* ---------------- LOAD ORGANISATIONS ---------------- */
 
     fun loadOrganisations() {
         viewModelScope.launch {
+
+            // ✅ Prevent API call if session expired
+            if (!tokenManager.isSessionValid()) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Session expired. Please login again."
+                )
+                return@launch
+            }
+
             _uiState.value = _uiState.value.copy(
                 isLoadingOrganisations = true,
                 error = null
@@ -58,6 +71,14 @@ class AuthViewModel(
                 }
 
                 is Result.Error -> {
+
+                    // ✅ Handle expired session from backend
+                    if (result.message.contains("401") ||
+                        result.message.contains("JWT", ignoreCase = true)
+                    ) {
+                        tokenManager.clearAll()
+                    }
+
                     _uiState.value = _uiState.value.copy(
                         isLoadingOrganisations = false,
                         error = result.message
@@ -98,12 +119,17 @@ class AuthViewModel(
 
                 is Result.Success -> {
 
+                    // ✅ Token already saved in repository
+
+                    // ✅ Just save expiry
+                    val expiryTime = System.currentTimeMillis() + (60 * 60 * 1000)
+                    tokenManager.saveTokenExpiry(expiryTime)
+
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         isSuccess = true
                     )
 
-                    // register device for push notifications
                     registerFcmToken()
                 }
 
@@ -183,15 +209,11 @@ class AuthViewModel(
 
     suspend fun logout() {
         try {
-
-            // Delete the FCM token from Firebase
             FirebaseMessaging.getInstance().deleteToken()
-
         } catch (e: Exception) {
             Log.e("FCM", "Failed to delete FCM token", e)
         }
 
-        // Clear local session
         tokenManager.clearAll()
     }
 
@@ -206,10 +228,7 @@ class AuthViewModel(
                 if (userId.isNullOrBlank()) return@launch
 
                 val fcmToken =
-                    com.google.firebase.messaging.FirebaseMessaging
-                        .getInstance()
-                        .token
-                        .await()
+                    FirebaseMessaging.getInstance().token.await()
 
                 notificationApi.registerDevice(
                     com.docuvio.app.data.api.RegisterDeviceRequest(

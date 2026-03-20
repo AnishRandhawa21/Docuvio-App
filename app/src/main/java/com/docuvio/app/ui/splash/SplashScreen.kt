@@ -47,7 +47,6 @@ fun SplashScreen(
         ),
         label = "rotate"
     )
-
     LaunchedEffect(Unit) {
         startAnimation = true
     }

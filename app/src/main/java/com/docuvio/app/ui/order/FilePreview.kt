@@ -89,6 +89,10 @@ private fun PdfPreview(
                 Bitmap.Config.ARGB_8888
             )
 
+// 👇 THIS LINE FIXES YOUR ISSUE
+            val canvas = android.graphics.Canvas(bmp)
+            canvas.drawColor(android.graphics.Color.WHITE)
+
             page.render(
                 bmp,
                 null,

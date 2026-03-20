@@ -36,6 +36,7 @@
     import java.io.File
     import java.io.FileOutputStream
     import androidx.compose.ui.text.input.KeyboardType
+    import com.docuvio.app.utils.PdfUtils
 
     @Composable
     fun WalkInOrderScreen(
@@ -59,11 +60,22 @@
         val filePicker =
             rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
                 uri ?: return@rememberLauncherForActivityResult
+
                 val fileName = FileUtils.getFileName(context, uri)
                 val input = context.contentResolver.openInputStream(uri)
                 val file = File(context.cacheDir, fileName)
-                input?.use { inp -> FileOutputStream(file).use { out -> inp.copyTo(out) } }
-                viewModel.setFile(file)
+
+                input?.use { inp ->
+                    FileOutputStream(file).use { out ->
+                        inp.copyTo(out)
+                    }
+                }
+
+                // ✅ CALCULATE PAGE COUNT HERE
+                val pageCount = PdfUtils.getPdfPageCount(context, file)
+
+                // ✅ SEND TO VIEWMODEL
+                viewModel.setFile(file, pageCount)
             }
 
         LaunchedEffect(uiState.isSuccess) {
@@ -93,12 +105,13 @@
             }
         }
 
-        Surface(modifier = Modifier.fillMaxSize(), color = Cream) {
+        Surface(modifier = Modifier.fillMaxSize().imePadding(), color = Cream) {
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+//                    .imePadding()
                     .padding(horizontal = 20.dp)
             ) {
 
@@ -174,6 +187,25 @@
                                     .fillMaxSize()
                                     .clip(RoundedCornerShape(16.dp))
                             )
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(10.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AlmostBlack.copy(alpha = 0.6f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (uiState.pageCount > 0)
+                                        "${uiState.pageCount} pages"
+                                    else
+                                        "Pages unknown",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             // Change file hint
                             Box(
                                 modifier = Modifier
