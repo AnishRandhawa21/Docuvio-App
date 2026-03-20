@@ -67,24 +67,29 @@
             }
 
         LaunchedEffect(uiState.isSuccess) {
-            if (uiState.isSuccess) onSuccess()
+            if (uiState.isSuccess) {
+                viewModel.resetState()
+                onSuccess()
+            }
         }
 
         LaunchedEffect(Unit) {
-            while (!uiState.isSuccess) {
+            while (true) {
                 RazorpayHolder.result?.let {
                     RazorpayHolder.result = null
+
                     if (it.paymentId.isBlank() || it.signature.isBlank()) {
-                        viewModel.clearError()
+                        viewModel.setPaymentCancelled()
                         return@let
                     }
+
                     viewModel.verifyPayment(
                         razorpayOrderId = it.orderId,
                         razorpayPaymentId = it.paymentId,
                         razorpaySignature = it.signature
                     )
                 }
-                kotlinx.coroutines.delay(200)
+                kotlinx.coroutines.delay(500)
             }
         }
 

@@ -20,7 +20,6 @@ class TokenManager(private val context: Context) {
         private val USER_ID_KEY = stringPreferencesKey("user_id")
         private val USER_NAME_KEY = stringPreferencesKey("user_name")
         private val USER_ROLE_KEY = stringPreferencesKey("user_role")
-
         private val USER_EMAIL_KEY = stringPreferencesKey("user_email")
     }
 

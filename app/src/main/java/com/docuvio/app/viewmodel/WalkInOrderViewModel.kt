@@ -46,6 +46,9 @@ class WalkInOrderViewModel(
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
+    fun resetState() {
+        _uiState.value = WalkInOrderUiState()
+    }
 
     fun submitOrder(onPaymentRequired: (String, Int) -> Unit) {
 
@@ -186,5 +189,11 @@ class WalkInOrderViewModel(
                 )
             }
         }
+    }
+    fun setPaymentCancelled() {
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            error = "Payment cancelled"
+        )
     }
 }
