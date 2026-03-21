@@ -25,6 +25,7 @@ import java.util.Locale
 data class CreateOrderUiState(
     val isLoading: Boolean = false,
     val printOptions: PrintOptions? = null,
+    val isCvMode: Boolean = false,
     val shop: Shop? = null,
     val description: String = "",
     val selectedFile: File? = null,
@@ -324,4 +325,46 @@ class CreateOrderViewModel(
     private fun String.toMinutes(): Int = try {
         val p = split(":"); p[0].toInt() * 60 + p[1].toInt()
     } catch (e: Exception) { 0 }
+
+    //Enable CV Button
+    fun enableCvMode() {
+        val options = _uiState.value.printOptions ?: return
+
+        val bondPaper    = options.paperTypes.find { it.name.lowercase() == "bond" }
+        val bondColor    = options.colorModes.find { it.name.lowercase() == "bond" }  // sent to backend, never shown
+        val normalFinish = options.finishTypes.find { it.name.lowercase() == "normal" }
+            ?: options.finishTypes.firstOrNull { it.name.lowercase() != "bond" }
+
+        if (bondPaper == null) {
+            _uiState.update { it.copy(error = "CV printing not available at this shop") }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                isCvMode           = true,
+                selectedPaperType  = bondPaper,
+                selectedColorMode  = bondColor ?: it.selectedColorMode, // Bond goes to backend silently
+                selectedFinishType = normalFinish ?: it.selectedFinishType,
+            )
+        }
+    }
+
+    fun disableCvMode() {
+        _uiState.update {
+            it.copy(
+                isCvMode           = false,
+                selectedPaperType  = null,
+                selectedFinishType = null,
+                // Restore to first non-Bond color so UI shows a selection again
+                selectedColorMode  = it.printOptions
+                    ?.colorModes
+                    ?.firstOrNull { cm -> cm.name.lowercase() != "bond" },
+            )
+        }
+    }
+
+    fun toggleCvMode() {
+        if (_uiState.value.isCvMode) disableCvMode() else enableCvMode()
+    }
 }

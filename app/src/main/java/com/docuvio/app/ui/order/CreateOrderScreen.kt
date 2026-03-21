@@ -31,6 +31,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -158,7 +159,7 @@ fun CreateOrderScreen(
             if (processing) {
                 OrderProcessingView(
                     step = uiState.currentStep,
-                    uploadProgress = uiState.uploadProgress,   // ← wired in
+                    uploadProgress = uiState.uploadProgress,
                     error = uiState.error,
                     onRetry = {
                         viewModel.clearError()
@@ -185,6 +186,7 @@ fun CreateOrderScreen(
                     onOrientationChange = viewModel::setOrientation,
                     onDescriptionChange = viewModel::setDescription,
                     onPickupAtChange = viewModel::setPickupAt,
+                    onCvModeToggle = viewModel::toggleCvMode,
                     onSubmit = {
                         if (activity == null) return@SelectOptionsContent
                         viewModel.submitOrder { razorpayOrderId, amount ->
@@ -208,12 +210,23 @@ fun CreateOrderScreen(
         uiState.error?.let { errorMessage ->
             AlertDialog(
                 onDismissRequest = { viewModel.clearError() },
-                containerColor = Cream, titleContentColor = AlmostBlack, textContentColor = MediumGray,
+                containerColor = Cream,
+                titleContentColor = AlmostBlack,
+                textContentColor = MediumGray,
                 icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = CoralRed) },
-                title = { Text("Something went wrong", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+                title = {
+                    Text(
+                        "Something went wrong",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
                 text = { Text(errorMessage, fontSize = 15.sp) },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.clearError() }, colors = ButtonDefaults.textButtonColors(contentColor = CoralRed)) {
+                    TextButton(
+                        onClick = { viewModel.clearError() },
+                        colors = ButtonDefaults.textButtonColors(contentColor = CoralRed)
+                    ) {
                         Text("OK", fontWeight = FontWeight.Bold)
                     }
                 },
@@ -230,16 +243,16 @@ fun CreateOrderScreen(
 private data class OrderFlowStep(val step: OrderStep, val label: String, val sub: String)
 
 private val ORDER_FLOW_STEPS = listOf(
-    OrderFlowStep(OrderStep.CREATING_ORDER,     "Creating order",      "Setting up your order"),
-    OrderFlowStep(OrderStep.UPLOADING,          "Uploading document",  "Sending file to server"),
-    OrderFlowStep(OrderStep.ATTACHING_DOCUMENT, "Attaching document",  "Linking file to order"),
-    OrderFlowStep(OrderStep.PROCESSING_PAYMENT, "Preparing payment",   "Initialising Razorpay"),
+    OrderFlowStep(OrderStep.CREATING_ORDER,     "Creating order",     "Setting up your order"),
+    OrderFlowStep(OrderStep.UPLOADING,          "Uploading document", "Sending file to server"),
+    OrderFlowStep(OrderStep.ATTACHING_DOCUMENT, "Attaching document", "Linking file to order"),
+    OrderFlowStep(OrderStep.PROCESSING_PAYMENT, "Preparing payment",  "Initialising Razorpay"),
 )
 
 @Composable
 private fun OrderProcessingView(
     step: OrderStep,
-    uploadProgress: Int,        // ← added
+    uploadProgress: Int,
     error: String?,
     onRetry: () -> Unit,
     onCancel: () -> Unit,
@@ -248,20 +261,32 @@ private fun OrderProcessingView(
     val currentIndex = ORDER_FLOW_STEPS.indexOfFirst { it.step == step }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(72.dp))
 
         Box(
-            modifier = Modifier.size(80.dp).clip(CircleShape)
+            modifier = Modifier
+                .size(80.dp)
+                .clip(CircleShape)
                 .background(if (isFailed) Color(0xFFFFEDED) else DarkBlue.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
             if (isFailed) {
-                Icon(Icons.Default.Close, null, tint = Color(0xFFD32F2F), modifier = Modifier.size(36.dp))
+                Icon(
+                    Icons.Default.Close, null,
+                    tint = Color(0xFFD32F2F),
+                    modifier = Modifier.size(36.dp)
+                )
             } else {
-                CircularProgressIndicator(color = DarkBlue, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+                CircularProgressIndicator(
+                    color = DarkBlue,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(36.dp)
+                )
             }
         }
 
@@ -271,18 +296,22 @@ private fun OrderProcessingView(
             targetState = if (isFailed) "Something went wrong"
             else ORDER_FLOW_STEPS.getOrNull(currentIndex)?.label ?: "Processing…",
             transitionSpec = {
-                slideInVertically { it / 2 } + fadeIn() togetherWith slideOutVertically { -it / 2 } + fadeOut()
+                slideInVertically { it / 2 } + fadeIn() togetherWith
+                        slideOutVertically { -it / 2 } + fadeOut()
             },
             label = "order_proc_title"
         ) { title ->
-            Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            Text(
+                title,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
                 color = if (isFailed) Color(0xFFD32F2F) else AlmostBlack,
-                textAlign = TextAlign.Center)
+                textAlign = TextAlign.Center
+            )
         }
 
         Spacer(Modifier.height(6.dp))
 
-        // Sub-label: show live "X% uploaded" when on upload step, same as WalkIn
         AnimatedContent(
             targetState = when {
                 isFailed -> error ?: "Please try again"
@@ -298,7 +327,8 @@ private fun OrderProcessingView(
         Spacer(Modifier.height(48.dp))
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
                 .background(AlmostBlack.copy(alpha = 0.04f))
                 .padding(vertical = 8.dp)
@@ -313,13 +343,15 @@ private fun OrderProcessingView(
                 OrderStepRow(
                     label = flowStep.label,
                     state = s,
-                    // only pass progress on the upload row while it's active
                     uploadProgress = if (flowStep.step == OrderStep.UPLOADING && s == OrderStepState.Active)
                         uploadProgress / 100f else null
                 )
                 if (i < ORDER_FLOW_STEPS.lastIndex) {
                     Box(
-                        Modifier.padding(start = 34.dp).width(2.dp).height(14.dp)
+                        Modifier
+                            .padding(start = 34.dp)
+                            .width(2.dp)
+                            .height(14.dp)
                             .background(
                                 if (i < currentIndex) DarkBlue.copy(alpha = 0.4f)
                                 else AlmostBlack.copy(alpha = 0.1f)
@@ -334,7 +366,9 @@ private fun OrderProcessingView(
         if (isFailed) {
             Button(
                 onClick = onRetry,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = DarkBlue)
             ) {
@@ -344,7 +378,12 @@ private fun OrderProcessingView(
         }
 
         TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-            Text("Cancel", color = if (isFailed) MediumGray else Color(0xFFD32F2F), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+            Text(
+                "Cancel",
+                color = if (isFailed) MediumGray else Color(0xFFD32F2F),
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp
+            )
         }
 
         Spacer(Modifier.height(32.dp))
@@ -357,7 +396,7 @@ private enum class OrderStepState { Pending, Active, Done, Failed }
 private fun OrderStepRow(
     label: String,
     state: OrderStepState,
-    uploadProgress: Float?      // ← non-null only for upload row while active
+    uploadProgress: Float?
 ) {
     val inf = rememberInfiniteTransition(label = "pulse")
     val pulse by inf.animateFloat(
@@ -366,19 +405,24 @@ private fun OrderStepRow(
         label = "p"
     )
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier
+                .size(28.dp)
                 .scale(if (state == OrderStepState.Active) pulse else 1f)
                 .clip(CircleShape)
-                .background(when (state) {
-                    OrderStepState.Done    -> DarkBlue
-                    OrderStepState.Active  -> DarkBlue.copy(alpha = 0.15f)
-                    OrderStepState.Failed  -> Color(0xFFFFEDED)
-                    OrderStepState.Pending -> AlmostBlack.copy(alpha = 0.08f)
-                }),
+                .background(
+                    when (state) {
+                        OrderStepState.Done    -> DarkBlue
+                        OrderStepState.Active  -> DarkBlue.copy(alpha = 0.15f)
+                        OrderStepState.Failed  -> Color(0xFFFFEDED)
+                        OrderStepState.Pending -> AlmostBlack.copy(alpha = 0.08f)
+                    }
+                ),
             contentAlignment = Alignment.Center
         ) {
             when (state) {
@@ -393,7 +437,8 @@ private fun OrderStepRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                label, fontSize = 15.sp,
+                label,
+                fontSize = 15.sp,
                 fontWeight = if (state == OrderStepState.Active) FontWeight.SemiBold else FontWeight.Normal,
                 color = when (state) {
                     OrderStepState.Done, OrderStepState.Active -> AlmostBlack
@@ -401,12 +446,14 @@ private fun OrderStepRow(
                     OrderStepState.Pending -> MediumGray
                 }
             )
-            // Progress bar — only renders on the upload row while active
             if (uploadProgress != null) {
                 Spacer(Modifier.height(5.dp))
                 LinearProgressIndicator(
                     progress = { uploadProgress },
-                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp)),
                     color = DarkBlue,
                     trackColor = DarkBlue.copy(alpha = 0.15f)
                 )
@@ -418,8 +465,16 @@ private fun OrderStepRow(
             enter = scaleIn(spring(Spring.DampingRatioMediumBouncy)),
             exit = scaleOut()
         ) {
-            Text("Done", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkBlue,
-                modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(DarkBlue.copy(alpha = 0.1f)).padding(horizontal = 8.dp, vertical = 3.dp))
+            Text(
+                "Done",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = DarkBlue,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(DarkBlue.copy(alpha = 0.1f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            )
         }
     }
 }
@@ -439,128 +494,321 @@ fun SelectOptionsContent(
     onOrientationChange: (PrintOrientation) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPickupAtChange: (String) -> Unit,
+    onCvModeToggle: () -> Unit,
     onSubmit: () -> Unit
 ) {
     var showInstructions by remember { mutableStateOf(false) }
 
-    Surface(modifier = Modifier
-        .fillMaxSize()
-        .imePadding(),
-        color = Cream) {
-        Column(modifier = Modifier
+    // ── Derived filtered lists ────────────────────────────────────────────────
+    //
+    // Color Mode  → Bond is ALWAYS hidden. User picks freely in both modes.
+    //               Bond color is never shown or sent — CV mode doesn't touch color.
+    //
+    // Paper Type  → All options shown in normal mode.
+    //               CV mode: only Bond shown (locked, user cannot change it).
+    //
+    // Finish Type → Bond is ALWAYS hidden from the list.
+    //               CV mode auto-selects "Normal" finish (not Bond).
+    //               User can still change finish freely even in CV mode.
+    //
+    val filteredColorModes = remember(uiState.printOptions) {
+        // Bond is never a user-facing color option — hide it in all modes
+        (uiState.printOptions?.colorModes ?: emptyList())
+            .filter { it.name.lowercase() != "bond" }
+    }
+
+    val filteredPaperTypes = remember(uiState.printOptions, uiState.isCvMode) {
+        val all = uiState.printOptions?.paperTypes ?: emptyList()
+        if (uiState.isCvMode) {
+            // CV mode: show only Bond (locked — cannot be changed)
+            all.filter { it.name.lowercase() == "bond" }
+        } else {
+            // Normal mode: all paper types available
+            all
+        }
+    }
+
+    val filteredFinishTypes = remember(uiState.printOptions) {
+        // Bond finish is never shown to the user — it is a CV-internal concept.
+        // In CV mode the ViewModel auto-selects "Normal" finish instead.
+        (uiState.printOptions?.finishTypes ?: emptyList())
+            .filter { it.name.lowercase() != "bond" }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    Surface(
+        modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)) {
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
+            .imePadding(),
+        color = Cream
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+        ) {
+            // ── Header ────────────────────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("Create Print Order", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), color = AlmostBlack)
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Create Print Order",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = AlmostBlack
+                )
                 InfoIconButton { showInstructions = true }
             }
 
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)) {
+            // ── File picker ───────────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
                 Column {
                     Box(
-                        modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(16.dp))
-                            .background(if (uiState.selectedFile != null) Color.Transparent else AlmostBlack.copy(alpha = 0.04f))
-                            .border(if (uiState.selectedFile != null) 2.dp else 1.5.dp, if (uiState.selectedFile != null) DarkBlue.copy(alpha = 0.7f) else AlmostBlack.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (uiState.selectedFile != null) Color.Transparent
+                                else AlmostBlack.copy(alpha = 0.04f)
+                            )
+                            .border(
+                                if (uiState.selectedFile != null) 2.dp else 1.5.dp,
+                                if (uiState.selectedFile != null) DarkBlue.copy(alpha = 0.7f)
+                                else AlmostBlack.copy(alpha = 0.3f),
+                                RoundedCornerShape(16.dp)
+                            )
                             .clickable { onFileSelect() },
                         contentAlignment = Alignment.Center
                     ) {
                         if (uiState.selectedFile != null) {
-                            FilePreview(file = uiState.selectedFile, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)))
-                            Box(modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp).clip(RoundedCornerShape(8.dp)).background(AlmostBlack.copy(alpha = 0.6f)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-                                Text("Tap to change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            FilePreview(
+                                file = uiState.selectedFile,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(16.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AlmostBlack.copy(alpha = 0.6f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "Tap to change",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).background(DarkBlue.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Add, null, tint = DarkBlue, modifier = Modifier.size(30.dp))
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(DarkBlue.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add, null,
+                                        tint = DarkBlue,
+                                        modifier = Modifier.size(30.dp)
+                                    )
                                 }
                                 Spacer(Modifier.height(10.dp))
-                                Text("Tap to upload document", color = AlmostBlack, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text(
+                                    "Tap to upload document",
+                                    color = AlmostBlack,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp
+                                )
                                 Spacer(Modifier.height(4.dp))
                                 Text("Max 500MB", color = MediumGray, fontSize = 12.sp)
                             }
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("Accepted: PDF, PNG, JPG (Max 500MB)", style = MaterialTheme.typography.bodySmall, color = MediumGray, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text(
+                        "Accepted: PDF, PNG, JPG (Max 500MB)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MediumGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)) {
                 Column {
-                    Row(modifier = Modifier
-                        .fillMaxWidth(),
+
+                    // ── Copies ────────────────────────────────────────────────
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically)
-                    {
-                        Text("Number of Copies: ", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Surface(modifier = Modifier
-                                .size(40.dp)
-                                .clickable { if (uiState.copies > 1) onCopiesChange(uiState.copies - 1) },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Number of Copies: ",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = AlmostBlack
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { if (uiState.copies > 1) onCopiesChange(uiState.copies - 1) },
                                 shape = RoundedCornerShape(8.dp),
-                                color = DarkBlue) { Box(contentAlignment = Alignment.Center) { Text("−", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold) } }
-                            Text(uiState.copies.toString(),
+                                color = DarkBlue
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("−", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(
+                                uiState.copies.toString(),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = AlmostBlack,
-                                modifier = Modifier.width(40.dp), textAlign = TextAlign.Center)
-                            Surface(modifier = Modifier
-                                .size(40.dp)
-                                .clickable { onCopiesChange(uiState.copies + 1) },
+                                modifier = Modifier.width(40.dp),
+                                textAlign = TextAlign.Center
+                            )
+                            Surface(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { onCopiesChange(uiState.copies + 1) },
                                 shape = RoundedCornerShape(8.dp),
-                                color = DarkBlue) { Box(contentAlignment = Alignment.Center) { Text("+", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold) } }
+                                color = DarkBlue
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("+", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
 
                     Spacer(Modifier.height(24.dp))
-                    Text("Color Mode", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
+
+                    // ── CV Mode Toggle ────────────────────────────────────────
+                    CvModeToggle(
+                        isEnabled = uiState.isCvMode,
+                        onToggle = onCvModeToggle
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    // ── Color Mode ────────────────────────────────────────────
+                    // CV mode: Bond is sent to backend but never shown in the UI.
+                    //          All visible cards appear unselected + dimmed.
+                    //          Clicks are fully blocked — user cannot change color.
+                    // Normal mode: user picks freely from all non-Bond options.
+                    Text(
+                        "Color Mode",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        // Dim the section label too when locked
+                        color = if (uiState.isCvMode) AlmostBlack.copy(alpha = 0.4f) else AlmostBlack
+                    )
                     Spacer(Modifier.height(12.dp))
-                    Row(modifier = Modifier
-                        .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        uiState.printOptions?.colorModes?.forEach { colorMode ->
-                            val isSelected = uiState.selectedColorMode == colorMode
-                            Box(modifier = Modifier.weight(1f)
-                                .height(140.dp)
-                                .background(if (isSelected) SoftBlue.copy(alpha = 0.1f) else Color.Transparent,
-                                    RoundedCornerShape(12.dp))
-                                .border(if (isSelected) 2.dp else 1.5.dp,
-                                    if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
-                                    RoundedCornerShape(12.dp))
-                                .clickable { onColorModeSelect(colorMode) }
-                                .padding(horizontal = 14.dp,
-                                    vertical = 12.dp)) {
-                                Column(modifier = Modifier
-                                    .fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(modifier = Modifier
-                                        .fillMaxWidth(),
-                                        contentAlignment = Alignment.TopEnd) {
-                                        if (isSelected) Icon(Icons.Default.Check, "Selected", tint = Blue, modifier = Modifier.size(22.dp)) else Spacer(Modifier.size(22.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        filteredColorModes.forEach { colorMode ->
+                            // In CV mode: nothing is "selected" visually — Bond is the real
+                            val isSelected = !uiState.isCvMode && uiState.selectedColorMode == colorMode
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(140.dp)
+                                    // Dim the whole card in CV mode
+                                    .alpha(if (uiState.isCvMode) 0.4f else 1f)
+                                    .background(
+                                        if (isSelected) SoftBlue.copy(alpha = 0.1f) else Color.Transparent,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .border(
+                                        if (isSelected) 2.dp else 1.5.dp,
+                                        if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    // Block clicks entirely in CV mode
+                                    .clickable(enabled = !uiState.isCvMode) {
+                                        onColorModeSelect(colorMode)
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.TopEnd
+                                    ) {
+                                        // Never show the check tick in CV mode
+                                        if (isSelected) Icon(
+                                            Icons.Default.Check, "Selected",
+                                            tint = Blue,
+                                            modifier = Modifier.size(22.dp)
+                                        ) else Spacer(Modifier.size(22.dp))
                                     }
                                     Spacer(Modifier.height(8.dp))
-                                    Column(modifier = Modifier.height(44.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                        Text(colorMode.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (isSelected) DarkBlue else AlmostBlack, textAlign = TextAlign.Center, maxLines = 1)
+                                    Column(
+                                        modifier = Modifier.height(44.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            colorMode.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) DarkBlue else AlmostBlack,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1
+                                        )
                                         Spacer(Modifier.height(2.dp))
-                                        Text("₹${colorMode.extraPrice}/page", style = MaterialTheme.typography.bodySmall, color = if (isSelected) Color(0xFF2E7D32) else MediumGray)
+                                        Text(
+                                            "₹${colorMode.extraPrice}/page",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = if (isSelected) Color(0xFF2E7D32) else MediumGray
+                                        )
                                     }
                                     Spacer(Modifier.height(12.dp))
-                                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         when {
-                                            colorMode.name.contains("color", ignoreCase = true) -> GradientDot()
-                                            colorMode.name.contains("cv", ignoreCase = true) -> SolidDot(Color(0xFFF3ECDC))
-                                            else -> { SolidDot(AlmostBlack); Spacer(Modifier.width(4.dp)); SolidDot(Color.White) }
+                                            colorMode.name.lowercase().contains("color") -> GradientDot()
+                                            colorMode.name.lowercase().contains("cv") -> SolidDot(Color(0xFFF3ECDC))
+                                            else -> {
+                                                SolidDot(AlmostBlack)
+                                                Spacer(Modifier.width(4.dp))
+                                                SolidDot(Color.White)
+                                            }
                                         }
                                     }
                                 }
@@ -569,37 +817,125 @@ fun SelectOptionsContent(
                     }
 
                     Spacer(Modifier.height(24.dp))
-                    DropdownSection(label = "Paper Type", placeholder = "Select paper size", selected = uiState.selectedPaperType?.name ?: "", items = uiState.printOptions?.paperTypes ?: emptyList(), itemText = { "${it.name} - ₹${it.basePrice}" }, onSelect = onPaperTypeSelect)
-                    Spacer(Modifier.height(24.dp))
-                    DropdownSection(label = "Finish Type", placeholder = "Select finish type", selected = uiState.selectedFinishType?.name ?: "", items = uiState.printOptions?.finishTypes ?: emptyList(), itemText = { "${it.name} - ₹${it.extraPrice}" }, onSelect = onFinishTypeSelect)
+
+                    // ── Paper Type ────────────────────────────────────────────
+                    // Normal mode: all paper types available.
+                    // CV mode: locked to Bond (auto-selected by ViewModel).
+                    DropdownSection(
+                        label = "Paper Type",
+                        placeholder = "Select paper size",
+                        selected = uiState.selectedPaperType?.name ?: "",
+                        items = filteredPaperTypes,
+                        itemText = { "${it.name} - ₹${it.basePrice}" },
+                        enabled = !uiState.isCvMode,
+                        onSelect = onPaperTypeSelect
+                    )
+
                     Spacer(Modifier.height(24.dp))
 
-                    Text("Orientation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
+                    // ── Finish Type ───────────────────────────────────────────
+                    // Bond is always hidden from the list (internal concept only).
+                    // CV mode auto-selects "Normal" finish via ViewModel + locks it.
+                    DropdownSection(
+                        label = "Finish Type",
+                        placeholder = "Select finish type",
+                        selected = uiState.selectedFinishType?.name ?: "",
+                        items = filteredFinishTypes,
+                        itemText = { "${it.name} - ₹${it.extraPrice}" },
+                        enabled = !uiState.isCvMode,
+                        onSelect = onFinishTypeSelect
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    // ── Orientation ───────────────────────────────────────────
+                    Text(
+                        "Orientation",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = AlmostBlack
+                    )
                     Spacer(Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         PrintOrientation.values().forEach { orientation ->
                             val isSelected = uiState.orientation == orientation
-                            Box(modifier = Modifier.weight(1f).heightIn(min = 80.dp).background(if (isSelected) OffWhite.copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(12.dp)).border(if (isSelected) 2.dp else 1.5.dp, if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).clickable { onOrientationChange(orientation) }.padding(16.dp), contentAlignment = Alignment.Center) {
-                                Text(orientation.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (isSelected) DarkBlue else AlmostBlack)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .heightIn(min = 80.dp)
+                                    .background(
+                                        if (isSelected) OffWhite.copy(alpha = 0.3f) else Color.Transparent,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .border(
+                                        if (isSelected) 2.dp else 1.5.dp,
+                                        if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { onOrientationChange(orientation) }
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    orientation.displayName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) DarkBlue else AlmostBlack
+                                )
                             }
                         }
                     }
 
                     Spacer(Modifier.height(24.dp))
+
+                    // ── Pickup ────────────────────────────────────────────────
                     uiState.shop?.let { shop ->
-                        PickupDateTimeSection(value = uiState.pickupAt, openTime = shop.openTime, closeTime = shop.closeTime, onValueChange = onPickupAtChange)
+                        PickupDateTimeSection(
+                            value = uiState.pickupAt,
+                            openTime = shop.openTime,
+                            closeTime = shop.closeTime,
+                            onValueChange = onPickupAtChange
+                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
+
                     if (isTomorrowPickup(uiState.pickupAt)) {
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
-                            Box(modifier = Modifier.fillMaxWidth().background(OffWhite.copy(alpha = 0.3f), RoundedCornerShape(12.dp)).border(2.dp, CoralRed, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 14.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(OffWhite.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .border(2.dp, CoralRed, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
                                     Icon(Icons.Default.Warning, null, tint = CoralRed)
                                     Column {
-                                        Text("Handling Fee Applied", fontWeight = FontWeight.Bold, color = AlmostBlack, fontSize = 16.sp)
+                                        Text(
+                                            "Handling Fee Applied",
+                                            fontWeight = FontWeight.Bold,
+                                            color = AlmostBlack,
+                                            fontSize = 16.sp
+                                        )
                                         Spacer(Modifier.height(2.dp))
-                                        Text("₹10 added for next-day pickup", color = CoralRed, fontSize = 13.sp)
+                                        Text(
+                                            "₹10 added for next-day pickup",
+                                            color = CoralRed,
+                                            fontSize = 13.sp
+                                        )
                                     }
                                 }
                             }
@@ -619,19 +955,119 @@ fun SelectOptionsContent(
         if (showInstructions) {
             AlertDialog(
                 onDismissRequest = { showInstructions = false },
-                containerColor = Cream, titleContentColor = AlmostBlack, textContentColor = MediumGray,
+                containerColor = Cream,
+                titleContentColor = AlmostBlack,
+                textContentColor = MediumGray,
                 icon = { Icon(Icons.Outlined.Info, null, tint = CoralRed) },
                 title = { Text("Printing Instructions", fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InstructionItem("For CV printing, select BOND in Paper Type and CV in Finish Type.")
+                        InstructionItem("Enable CV Mode to automatically select Bond paper, finish, and color.")
                         InstructionItem("Upload PDF or image files (PNG, JPG).")
                         InstructionItem("Urgent printing adds an extra ₹10 to the total price.")
                     }
                 },
-                confirmButton = { TextButton(onClick = { showInstructions = false }, colors = ButtonDefaults.textButtonColors(contentColor = LimeGreen)) { Text("Got it") } },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showInstructions = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = LimeGreen)
+                    ) {
+                        Text("Got it")
+                    }
+                },
                 shape = RoundedCornerShape(16.dp)
             )
+        }
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  CV MODE TOGGLE                                                             */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+@Composable
+private fun CvModeToggle(
+    isEnabled: Boolean,
+    onToggle: () -> Unit
+) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isEnabled) DarkBlue else Color.Transparent,
+        animationSpec = tween(250),
+        label = "cv_bg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isEnabled) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+        animationSpec = tween(250),
+        label = "cv_border"
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (isEnabled) Color.White else AlmostBlack,
+        animationSpec = tween(250),
+        label = "cv_label"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bgColor)
+            .border(
+                width = if (isEnabled) 0.dp else 1.5.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column {
+            Text(
+                text = "CV Mode",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = labelColor
+            )
+            AnimatedVisibility(visible = isEnabled) {
+                Text(
+                    text = "Bond paper auto-selected",
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.75f)
+                )
+            }
+        }
+
+        AnimatedContent(
+            targetState = isEnabled,
+            transitionSpec = {
+                (scaleIn(spring(Spring.DampingRatioMediumBouncy)) + fadeIn()) togetherWith
+                        (scaleOut() + fadeOut())
+            },
+            label = "cv_icon"
+        ) { enabled ->
+            if (enabled) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "CV Mode On",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(DarkBlue.copy(alpha = 0.1f))
+                        .padding(horizontal = 8.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        "CV",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DarkBlue
+                    )
+                }
+            }
         }
     }
 }
@@ -642,7 +1078,12 @@ fun SelectOptionsContent(
 
 @Composable
 private fun OrderLoadingScreen(text: String) {
-    Box(modifier = Modifier.fillMaxSize().background(Cream), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Cream),
+        contentAlignment = Alignment.Center
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = GoldenYellow, strokeWidth = 3.dp)
             Spacer(Modifier.height(14.dp))
@@ -653,34 +1094,110 @@ private fun OrderLoadingScreen(text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun <T> DropdownSection(label: String, placeholder: String, selected: String, items: List<T>, itemText: (T) -> String, onSelect: (T) -> Unit) {
+private fun <T> DropdownSection(
+    label: String,
+    placeholder: String,
+    selected: String,
+    items: List<T>,
+    itemText: (T) -> String,
+    onSelect: (T) -> Unit,
+    enabled: Boolean = true,
+) {
     var expanded by remember { mutableStateOf(false) }
     val isSelected = selected.isNotEmpty()
+
+    // Auto-collapse if disabled mid-open (e.g. user opens then toggles CV mode)
+    LaunchedEffect(enabled) { if (!enabled) expanded = false }
+
     Column {
-        Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (enabled) AlmostBlack else AlmostBlack.copy(alpha = 0.4f)
+        )
         Spacer(Modifier.height(12.dp))
-        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-            Box(modifier = Modifier.menuAnchor().fillMaxWidth().height(56.dp).background(if (isSelected) OffWhite.copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(12.dp)).border(if (isSelected) 2.dp else 1.5.dp, if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).clickable { expanded = true }.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(if (selected.isEmpty()) placeholder else selected, color = if (isSelected) AlmostBlack else MediumGray, style = MaterialTheme.typography.bodyLarge)
-                    Icon(Icons.Default.ArrowDropDown, null, tint = if (isSelected) AlmostBlack else MediumGray)
+        ExposedDropdownMenuBox(
+            expanded = expanded && enabled,
+            onExpandedChange = { if (enabled) expanded = it }
+        ) {
+            Box(
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(
+                        if (isSelected) OffWhite.copy(alpha = 0.3f) else Color.Transparent,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .border(
+                        if (isSelected) 2.dp else 1.5.dp,
+                        if (isSelected) DarkBlue else AlmostBlack.copy(alpha = if (enabled) 0.6f else 0.3f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable(enabled = enabled) { expanded = true }
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        if (selected.isEmpty()) placeholder else selected,
+                        color = when {
+                            !enabled && isSelected -> AlmostBlack.copy(alpha = 0.4f)
+                            isSelected             -> AlmostBlack
+                            else                   -> MediumGray
+                        },
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Icon(
+                        // Hide the arrow when locked — makes it clear the field isn't interactive
+                        if (enabled) Icons.Default.ArrowDropDown else Icons.Default.Check,
+                        contentDescription = null,
+                        tint = if (enabled) {
+                            if (isSelected) AlmostBlack else MediumGray
+                        } else {
+                            DarkBlue.copy(alpha = 0.4f)
+                        }
+                    )
                 }
             }
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(OffWhite)) {
-                items.forEach { item -> DropdownMenuItem(text = { Text(itemText(item), color = AlmostBlack) }, onClick = { onSelect(item); expanded = false }) }
+            ExposedDropdownMenu(
+                expanded = expanded && enabled,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(OffWhite)
+            ) {
+                items.forEach { item ->
+                    DropdownMenuItem(
+                        text = { Text(itemText(item), color = AlmostBlack) },
+                        onClick = { onSelect(item); expanded = false }
+                    )
+                }
             }
         }
     }
 }
 
-fun startRazorpayPayment(activity: Activity, razorpayOrderId: String, amount: Int, onSuccess: (paymentId: String, orderId: String) -> Unit, onError: (String) -> Unit) {
+fun startRazorpayPayment(
+    activity: Activity,
+    razorpayOrderId: String,
+    amount: Int,
+    onSuccess: (paymentId: String, orderId: String) -> Unit,
+    onError: (String) -> Unit
+) {
     try {
         val checkout = Checkout()
         checkout.setKeyID(BuildConfig.RAZORPAY_KEY_ID)
         val options = JSONObject().apply {
-            put("name", "Docuvio"); put("description", "Print Order Payment")
-            put("order_id", razorpayOrderId); put("currency", "INR")
-            put("amount", amount); put("theme.color", "#FFBF5E7")
+            put("name", "Docuvio")
+            put("description", "Print Order Payment")
+            put("order_id", razorpayOrderId)
+            put("currency", "INR")
+            put("amount", amount)
+            put("theme.color", "#FFBF5E7")
         }
         checkout.open(activity, options)
     } catch (e: Exception) {
@@ -691,18 +1208,44 @@ fun startRazorpayPayment(activity: Activity, razorpayOrderId: String, amount: In
 
 private fun getFileName(context: Context, uri: Uri): String {
     val cursor = context.contentResolver.query(uri, null, null, null, null)
-    cursor?.use { val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (it.moveToFirst()) return it.getString(nameIndex) }
+    cursor?.use {
+        val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (it.moveToFirst()) return it.getString(nameIndex)
+    }
     return "file_${System.currentTimeMillis()}"
 }
 
 @Composable
 fun DescriptionSection(value: String, onValueChange: (String) -> Unit) {
     Column {
-        Text("Instruction", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
+        Text(
+            "Instruction",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = AlmostBlack
+        )
         Spacer(Modifier.height(12.dp))
-        Box(modifier = Modifier.fillMaxWidth().background(Color.Transparent, RoundedCornerShape(12.dp)).border(1.5.dp, AlmostBlack.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(16.dp)) {
-            BasicTextField(value = value, onValueChange = onValueChange, minLines = 3, maxLines = 5, textStyle = LocalTextStyle.current.copy(color = AlmostBlack, fontSize = 14.sp), modifier = Modifier.fillMaxWidth()) { innerTextField ->
-                if (value.isEmpty()) Text("Any special instructions? (optional)", color = MediumGray.copy(alpha = 0.5f))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Transparent, RoundedCornerShape(12.dp))
+                .border(1.5.dp, AlmostBlack.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                .padding(16.dp)
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                minLines = 3,
+                maxLines = 5,
+                textStyle = LocalTextStyle.current.copy(color = AlmostBlack, fontSize = 14.sp),
+                modifier = Modifier.fillMaxWidth()
+            ) { innerTextField ->
+                if (value.isEmpty()) {
+                    Text(
+                        "Any special instructions? (optional)",
+                        color = MediumGray.copy(alpha = 0.5f)
+                    )
+                }
                 innerTextField()
             }
         }
@@ -712,7 +1255,11 @@ fun DescriptionSection(value: String, onValueChange: (String) -> Unit) {
 @Composable
 fun InfoIconButton(onClick: () -> Unit) {
     IconButton(onClick = onClick, modifier = Modifier.size(32.dp)) {
-        Icon(Icons.Outlined.Info, "Instructions", tint = CoralRed, modifier = Modifier.size(24.dp))
+        Icon(
+            Icons.Outlined.Info, "Instructions",
+            tint = CoralRed,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 
@@ -726,56 +1273,198 @@ fun InstructionItem(text: String) {
 
 @Composable
 fun SolidDot(color: Color) {
-    Box(modifier = Modifier.size(18.dp).clip(RoundedCornerShape(9.dp)).background(color).border(1.dp, AlmostBlack.copy(alpha = 0.3f), RoundedCornerShape(9.dp)))
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(color)
+            .border(1.dp, AlmostBlack.copy(alpha = 0.3f), RoundedCornerShape(9.dp))
+    )
 }
 
 @Composable
 fun GradientDot() {
-    Box(modifier = Modifier.size(18.dp).clip(RoundedCornerShape(9.dp)).background(brush = Brush.linearGradient(colors = listOf(Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047), Color(0xFF1E88E5), Color(0xFF8E24AA)))))
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835),
+                        Color(0xFF43A047), Color(0xFF1E88E5), Color(0xFF8E24AA)
+                    )
+                )
+            )
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PickupDateTimeSection(value: String?, openTime: String, closeTime: String, onValueChange: (String) -> Unit) {
+fun PickupDateTimeSection(
+    value: String?,
+    openTime: String,
+    closeTime: String,
+    onValueChange: (String) -> Unit
+) {
     var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
     var showTimePicker by remember { mutableStateOf(false) }
     val openMinutes = openTime.toMinutes()
     val closeMinutes = closeTime.toMinutes()
     val lastOrderMinutes = closeMinutes - 30
-    val nowMinutes = remember { val now = Calendar.getInstance(); now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE) }
+    val nowMinutes = remember {
+        val now = Calendar.getInstance()
+        now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+    }
     val showTomorrowButton = nowMinutes >= lastOrderMinutes
 
     Column {
-        Text("Pickup Date & Time", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
+        Text(
+            "Pickup Date & Time",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = AlmostBlack
+        )
         Spacer(Modifier.height(12.dp))
-        val today = remember { Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis }
-        val tomorrow = remember { Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, 1); set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        val today = remember {
+            Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }
+        val tomorrow = remember {
+            Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_MONTH, 1)
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             val todayEnabled = nowMinutes < lastOrderMinutes
-            Box(modifier = Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(12.dp)).background(when { selectedDateMillis == today && value != null -> DarkBlue; !todayEnabled -> MediumGray.copy(alpha = 0.15f); else -> OffWhite }).border(if (selectedDateMillis == today && value != null) 0.dp else 1.5.dp, if (!todayEnabled) MediumGray.copy(alpha = 0.3f) else AlmostBlack.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).clickable(enabled = todayEnabled) { selectedDateMillis = today; showTimePicker = true }, contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        when {
+                            selectedDateMillis == today && value != null -> DarkBlue
+                            !todayEnabled -> MediumGray.copy(alpha = 0.15f)
+                            else -> OffWhite
+                        }
+                    )
+                    .border(
+                        if (selectedDateMillis == today && value != null) 0.dp else 1.5.dp,
+                        if (!todayEnabled) MediumGray.copy(alpha = 0.3f) else AlmostBlack.copy(alpha = 0.5f),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable(enabled = todayEnabled) {
+                        selectedDateMillis = today; showTimePicker = true
+                    },
+                contentAlignment = Alignment.Center
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Today", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = when { selectedDateMillis == today && value != null -> Color.White; !todayEnabled -> MediumGray.copy(alpha = 0.4f); else -> AlmostBlack })
-                    if (!todayEnabled) Text("Closed", fontSize = 10.sp, color = MediumGray.copy(alpha = 0.4f), fontWeight = FontWeight.Medium)
+                    Text(
+                        "Today",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = when {
+                            selectedDateMillis == today && value != null -> Color.White
+                            !todayEnabled -> MediumGray.copy(alpha = 0.4f)
+                            else -> AlmostBlack
+                        }
+                    )
+                    if (!todayEnabled) {
+                        Text(
+                            "Closed",
+                            fontSize = 10.sp,
+                            color = MediumGray.copy(alpha = 0.4f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
             if (showTomorrowButton) {
-                Box(modifier = Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(12.dp)).background(if (selectedDateMillis == tomorrow && value != null) DarkBlue else OffWhite).border(if (selectedDateMillis == tomorrow && value != null) 0.dp else 1.5.dp, AlmostBlack.copy(alpha = 0.5f), RoundedCornerShape(12.dp)).clickable { selectedDateMillis = tomorrow; showTimePicker = true }, contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (selectedDateMillis == tomorrow && value != null) DarkBlue else OffWhite
+                        )
+                        .border(
+                            if (selectedDateMillis == tomorrow && value != null) 0.dp else 1.5.dp,
+                            AlmostBlack.copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { selectedDateMillis = tomorrow; showTimePicker = true },
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Tomorrow", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = if (selectedDateMillis == tomorrow && value != null) Color.White else AlmostBlack)
-                        if (selectedDateMillis != tomorrow || value == null) Text("+₹10 handling", fontSize = 10.sp, color = CoralRed.copy(alpha = 0.8f), fontWeight = FontWeight.Medium)
+                        Text(
+                            "Tomorrow",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = if (selectedDateMillis == tomorrow && value != null) Color.White else AlmostBlack
+                        )
+                        if (selectedDateMillis != tomorrow || value == null) {
+                            Text(
+                                "+₹10 handling",
+                                fontSize = 10.sp,
+                                color = CoralRed.copy(alpha = 0.8f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
         }
         Spacer(Modifier.height(12.dp))
-        Box(modifier = Modifier.fillMaxWidth().background(if (value != null) OffWhite.copy(alpha = 0.3f) else Color.Transparent, RoundedCornerShape(12.dp)).border(if (value != null) 2.dp else 1.5.dp, if (value != null) DarkBlue else AlmostBlack.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).clickable(enabled = selectedDateMillis != null) { showTimePicker = true }.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = value?.let { formatPickupDateTime(it) } ?: "Select date above, then choose time", color = if (value != null) AlmostBlack else MediumGray.copy(alpha = 0.5f), style = MaterialTheme.typography.bodyMedium, fontWeight = if (value != null) FontWeight.SemiBold else FontWeight.Normal)
-                Icon(Icons.Default.CalendarToday, "Select time", tint = if (value != null) SoftBlue else MediumGray, modifier = Modifier.size(24.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    if (value != null) OffWhite.copy(alpha = 0.3f) else Color.Transparent,
+                    RoundedCornerShape(12.dp)
+                )
+                .border(
+                    if (value != null) 2.dp else 1.5.dp,
+                    if (value != null) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable(enabled = selectedDateMillis != null) { showTimePicker = true }
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = value?.let { formatPickupDateTime(it) }
+                        ?: "Select date above, then choose time",
+                    color = if (value != null) AlmostBlack else MediumGray.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (value != null) FontWeight.SemiBold else FontWeight.Normal
+                )
+                Icon(
+                    Icons.Default.CalendarToday, "Select time",
+                    tint = if (value != null) SoftBlue else MediumGray,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text("Pickup available between ${formatTime(openTime)} and ${formatTime(closeTime)}", style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = MediumGray, maxLines = 1)
+        Text(
+            "Pickup available between ${formatTime(openTime)} and ${formatTime(closeTime)}",
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+            color = MediumGray,
+            maxLines = 1
+        )
     }
 
     if (showTimePicker && selectedDateMillis != null) {
@@ -783,7 +1472,10 @@ fun PickupDateTimeSection(value: String?, openTime: String, closeTime: String, o
         val now = Calendar.getInstance()
         val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
         val earliestAllowedMinutes = currentMinutes + 30
-        val todayStart = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+        val todayStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
         val isToday = selectedDateMillis == todayStart
         val isValidTime = run {
             val selected = timePickerState.hour * 60 + timePickerState.minute
@@ -793,25 +1485,65 @@ fun PickupDateTimeSection(value: String?, openTime: String, closeTime: String, o
         AlertDialog(
             onDismissRequest = { showTimePicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    if (!isValidTime) return@TextButton
-                    val calendar = Calendar.getInstance().apply { timeInMillis = selectedDateMillis!!; set(Calendar.HOUR_OF_DAY, timePickerState.hour); set(Calendar.MINUTE, timePickerState.minute); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }
-                    onValueChange(SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(calendar.time))
-                    showTimePicker = false
-                }, colors = ButtonDefaults.textButtonColors(contentColor = if (isValidTime) DarkBlue else SoftBlue)) { Text("Confirm", fontWeight = FontWeight.Bold) }
-            },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel", color = MediumGray) } },
-            title = { Text("Select Pickup Time", fontWeight = FontWeight.Bold, color = AlmostBlack) },
-            text = {
-                Column {
-                    Text(if (isToday) "Min. 30 min from now · Available until ${formatTime(closeTime)}" else "Available between ${formatTime(openTime)} and ${formatTime(closeTime)}", style = MaterialTheme.typography.bodySmall, color = MediumGray)
-                    Spacer(Modifier.height(16.dp))
-                    TimePicker(state = timePickerState, colors = TimePickerDefaults.colors(clockDialColor = OffWhite, selectorColor = SoftBlue, clockDialSelectedContentColor = Color.White, clockDialUnselectedContentColor = AlmostBlack))
+                TextButton(
+                    onClick = {
+                        if (!isValidTime) return@TextButton
+                        val calendar = Calendar.getInstance().apply {
+                            timeInMillis = selectedDateMillis!!
+                            set(Calendar.HOUR_OF_DAY, timePickerState.hour)
+                            set(Calendar.MINUTE, timePickerState.minute)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        onValueChange(
+                            SimpleDateFormat(
+                                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                                Locale.getDefault()
+                            ).format(calendar.time)
+                        )
+                        showTimePicker = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = if (isValidTime) DarkBlue else SoftBlue
+                    )
+                ) {
+                    Text("Confirm", fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = Cream, shape = RoundedCornerShape(16.dp)
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("Cancel", color = MediumGray)
+                }
+            },
+            title = {
+                Text("Select Pickup Time", fontWeight = FontWeight.Bold, color = AlmostBlack)
+            },
+            text = {
+                Column {
+                    Text(
+                        if (isToday) "Min. 30 min from now · Available until ${formatTime(closeTime)}"
+                        else "Available between ${formatTime(openTime)} and ${formatTime(closeTime)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MediumGray
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    TimePicker(
+                        state = timePickerState,
+                        colors = TimePickerDefaults.colors(
+                            clockDialColor = OffWhite,
+                            selectorColor = SoftBlue,
+                            clockDialSelectedContentColor = Color.White,
+                            clockDialUnselectedContentColor = AlmostBlack
+                        )
+                    )
+                }
+            },
+            containerColor = Cream,
+            shape = RoundedCornerShape(16.dp)
         )
     }
 }
 
-private fun String.toMinutes(): Int = try { val p = split(":"); p[0].toInt() * 60 + p[1].toInt() } catch (e: Exception) { 0 }
+private fun String.toMinutes(): Int = try {
+    val p = split(":"); p[0].toInt() * 60 + p[1].toInt()
+} catch (e: Exception) { 0 }
