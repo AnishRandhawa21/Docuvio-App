@@ -1,484 +1,516 @@
-    package com.docuvio.app.ui.order
+package com.docuvio.app.ui.order
 
-    import android.app.Activity
-    import android.content.Context
-    import android.content.ContextWrapper
-    import android.util.Log
-    import androidx.activity.compose.rememberLauncherForActivityResult
-    import androidx.activity.result.contract.ActivityResultContracts
-    import androidx.compose.foundation.background
-    import androidx.compose.foundation.border
-    import androidx.compose.foundation.clickable
-    import androidx.compose.foundation.layout.*
-    import androidx.compose.foundation.rememberScrollState
-    import androidx.compose.foundation.verticalScroll
-    import androidx.compose.foundation.shape.RoundedCornerShape
-    import androidx.compose.foundation.text.BasicTextField
-    import androidx.compose.foundation.text.KeyboardOptions
-    import androidx.compose.material.icons.Icons
-    import androidx.compose.material.icons.filled.Add
-    import androidx.compose.material3.*
-    import androidx.compose.runtime.*
-    import androidx.compose.ui.Alignment
-    import androidx.compose.ui.Modifier
-    import androidx.compose.ui.draw.clip
-    import androidx.compose.ui.graphics.Color
-    import androidx.compose.ui.platform.LocalContext
-    import androidx.compose.ui.text.font.FontWeight
-    import androidx.compose.ui.unit.dp
-    import androidx.compose.ui.unit.sp
-    import androidx.lifecycle.viewmodel.compose.viewModel
-    import com.docuvio.app.data.model.RazorpayHolder
-    import com.docuvio.app.theme.*
-    import com.docuvio.app.utils.FileUtils
-    import com.docuvio.app.viewmodel.WalkInOrderViewModel
-    import com.docuvio.app.viewmodel.WalkInOrderViewModelFactory
-    import java.io.File
-    import java.io.FileOutputStream
-    import androidx.compose.ui.text.input.KeyboardType
-    import com.docuvio.app.utils.PdfUtils
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.docuvio.app.data.model.RazorpayHolder
+import com.docuvio.app.theme.*
+import com.docuvio.app.viewmodel.WalkInOrderStage
+import com.docuvio.app.viewmodel.WalkInOrderUiState
+import com.docuvio.app.viewmodel.WalkInOrderViewModel
+import com.docuvio.app.viewmodel.WalkInOrderViewModelFactory
+import java.io.File
+import java.io.FileOutputStream
+import androidx.compose.ui.text.input.KeyboardType
+import com.docuvio.app.ui.order.utils.WalkInFloatingPayBar
+import com.docuvio.app.utils.PdfUtils
+import kotlinx.coroutines.launch
 
-    @Composable
-    fun WalkInOrderScreen(
-        viewModelFactory: WalkInOrderViewModelFactory,
-        onSuccess: () -> Unit
-    ) {
-        val viewModel: WalkInOrderViewModel = viewModel(factory = viewModelFactory)
-        val uiState by viewModel.uiState.collectAsState()
+// ── Stage metadata ────────────────────────────────────────────────────────────
 
-        val context = LocalContext.current
+private data class StepMeta(val stage: WalkInOrderStage, val label: String, val sub: String)
 
-        val activity = remember(context) {
-            var ctx: Context = context
-            while (ctx is ContextWrapper) {
-                if (ctx is Activity) return@remember ctx
-                ctx = ctx.baseContext
-            }
-            null
+private val STEPS = listOf(
+    StepMeta(WalkInOrderStage.CreatingOrder,     "Creating order",     "Setting up your order"),
+    StepMeta(WalkInOrderStage.UploadingFile,     "Uploading document", "Sending file to server"),
+    StepMeta(WalkInOrderStage.AttachingDocument, "Attaching document", "Linking file to order"),
+    StepMeta(WalkInOrderStage.CreatingPayment,   "Preparing payment",  "Initialising Razorpay"),
+)
+
+private fun stageIndex(stage: WalkInOrderStage) = STEPS.indexOfFirst { it.stage == stage }
+
+// ── Root ──────────────────────────────────────────────────────────────────────
+
+@Composable
+fun WalkInOrderScreen(
+    viewModelFactory: WalkInOrderViewModelFactory,
+    onSuccess: () -> Unit
+) {
+    val viewModel: WalkInOrderViewModel = viewModel(factory = viewModelFactory)
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    val activity = remember(context) {
+        var ctx: Context = context
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return@remember ctx
+            ctx = ctx.baseContext
         }
+        null
+    }
 
-        val filePicker =
-            rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-                uri ?: return@rememberLauncherForActivityResult
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        val mimeType  = context.contentResolver.getType(uri) ?: ""
+        val extension = when {
+            mimeType.contains("pdf")  -> "pdf"
+            mimeType.contains("png")  -> "png"
+            mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpg"
+            else -> "file"
+        }
+        val file = File(context.cacheDir, "file_${System.currentTimeMillis()}.$extension")
+        context.contentResolver.openInputStream(uri)?.use { inp ->
+            FileOutputStream(file).use { inp.copyTo(it) }
+        }
+        viewModel.setFile(file, if (extension == "pdf") PdfUtils.getPdfPageCount(context, file) else 1)
+    }
 
-                val fileName = FileUtils.getFileName(context, uri)
-                val input = context.contentResolver.openInputStream(uri)
-                val file = File(context.cacheDir, fileName)
+    LaunchedEffect(uiState.isSuccess) {
+        if (uiState.isSuccess) { viewModel.resetState(); onSuccess() }
+    }
 
-                input?.use { inp ->
-                    FileOutputStream(file).use { out ->
-                        inp.copyTo(out)
-                    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            RazorpayHolder.result?.let {
+                RazorpayHolder.result = null
+                if (it.paymentId.isBlank() || it.signature.isBlank()) {
+                    viewModel.setPaymentCancelled(); return@let
                 }
-
-                // ✅ CALCULATE PAGE COUNT HERE
-                val pageCount = PdfUtils.getPdfPageCount(context, file)
-
-                // ✅ SEND TO VIEWMODEL
-                viewModel.setFile(file, pageCount)
+                viewModel.verifyPayment(it.orderId, it.paymentId, it.signature)
             }
-
-        LaunchedEffect(uiState.isSuccess) {
-            if (uiState.isSuccess) {
-                viewModel.resetState()
-                onSuccess()
-            }
+            kotlinx.coroutines.delay(500)
         }
+    }
 
-        LaunchedEffect(Unit) {
-            while (true) {
-                RazorpayHolder.result?.let {
-                    RazorpayHolder.result = null
-
-                    if (it.paymentId.isBlank() || it.signature.isBlank()) {
-                        viewModel.setPaymentCancelled()
-                        return@let
-                    }
-
-                    viewModel.verifyPayment(
-                        razorpayOrderId = it.orderId,
-                        razorpayPaymentId = it.paymentId,
-                        razorpaySignature = it.signature
-                    )
-                }
-                kotlinx.coroutines.delay(500)
-            }
-        }
-
-        Surface(modifier = Modifier.fillMaxSize().imePadding(), color = Cream) {
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-//                    .imePadding()
-                    .padding(horizontal = 20.dp)
-            ) {
-
-                // ── HEADER ──────────────────────────────────────────
-                Spacer(Modifier.height(20.dp))
-
-                Text(
-                    text = "Walk-In Order",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = AlmostBlack
+    Surface(modifier = Modifier.fillMaxSize(), color = Cream) {
+        AnimatedContent(
+            targetState = uiState.stage != WalkInOrderStage.Idle,
+            transitionSpec = {
+                if (targetState)
+                    slideInVertically { it } + fadeIn() togetherWith slideOutVertically { -it / 3 } + fadeOut()
+                else
+                    slideInVertically { -it / 3 } + fadeIn() togetherWith slideOutVertically { it } + fadeOut()
+            },
+            label = "screen_swap"
+        ) { showProcessing ->
+            if (showProcessing) {
+                ProcessingView(
+                    stage          = uiState.stage,
+                    uploadProgress = uiState.uploadProgress,
+                    error          = uiState.error,
+                    onRetry        = { viewModel.clearError() },
+                    onCancel       = { viewModel.resetState() }
                 )
-
-                Text(
-                    text = "Upload a PDF and set price manually",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MediumGray,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-
-                Spacer(Modifier.height(28.dp))
-
-                // ── FILE UPLOAD ──────────────────────────────────────
-                SectionLabel("Document")
-
-                Spacer(Modifier.height(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            if (uiState.selectedFile != null)
-                                Color.Transparent
-                            else
-                                AlmostBlack.copy(alpha = 0.04f)
-                        )
-                        .border(
-                            width = if (uiState.selectedFile != null) 2.dp else 1.5.dp,
-                            color = if (uiState.selectedFile != null)
-                                DarkBlue.copy(alpha = 0.7f)
-                            else
-                                AlmostBlack.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(16.dp)
-                        )
-                        .clickable(enabled = !uiState.uploadingFile) {
-                            filePicker.launch("application/pdf")
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    when {
-                        uiState.uploadingFile -> {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(
-                                    color = DarkBlue,
-                                    strokeWidth = 3.dp,
-                                    modifier = Modifier.size(36.dp)
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    "Uploading ${uiState.uploadProgress}%",
-                                    color = MediumGray,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-                        uiState.selectedFile != null -> {
-                            FilePreview(
-                                file = uiState.selectedFile!!,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(16.dp))
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopStart)
-                                    .padding(10.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(AlmostBlack.copy(alpha = 0.6f))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = if (uiState.pageCount > 0)
-                                        "${uiState.pageCount} pages"
-                                    else
-                                        "Pages unknown",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                            // Change file hint
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(10.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(AlmostBlack.copy(alpha = 0.6f))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    "Tap to change",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                        else -> {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(DarkBlue.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = DarkBlue,
-                                        modifier = Modifier.size(30.dp)
-                                    )
-                                }
-                                Spacer(Modifier.height(10.dp))
-                                Text(
-                                    "Tap to upload PDF",
-                                    color = AlmostBlack,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 15.sp
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "Max 500MB",
-                                    color = MediumGray,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                // ── PRICE ────────────────────────────────────────────
-                SectionLabel("Manual Price")
-
-                Spacer(Modifier.height(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (uiState.amount.isNotBlank()) DarkBlue.copy(alpha = 0.05f)
-                            else Color.Transparent
-                        )
-                        .border(
-                            width = if (uiState.amount.isNotBlank()) 2.dp else 1.5.dp,
-                            color = if (uiState.amount.isNotBlank()) DarkBlue.copy(alpha = 0.7f)
-                            else AlmostBlack.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "₹",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (uiState.amount.isNotBlank()) DarkBlue else MediumGray,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        BasicTextField(
-                            value = uiState.amount,
-                            onValueChange = { input ->
-                                if (input.all { it.isDigit() }) viewModel.setAmount(input)
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AlmostBlack
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) { innerTextField ->
-                            if (uiState.amount.isEmpty()) {
-                                Text(
-                                    "Enter amount",
-                                    color = MediumGray,
-                                    fontSize = 16.sp
-                                )
-                            }
-                            innerTextField()
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(24.dp))
-
-                // ── NOTES ────────────────────────────────────────────
-                SectionLabel("Notes")
-
-                Spacer(Modifier.height(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (uiState.notes.isNotBlank()) DarkBlue.copy(alpha = 0.05f)
-                            else Color.Transparent
-                        )
-                        .border(
-                            width = if (uiState.notes.isNotBlank()) 2.dp else 1.5.dp,
-                            color = if (uiState.notes.isNotBlank()) DarkBlue.copy(alpha = 0.7f)
-                            else AlmostBlack.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    BasicTextField(
-                        value = uiState.notes,
-                        onValueChange = viewModel::setNotes,
-                        minLines = 3,
-                        textStyle = LocalTextStyle.current.copy(
-                            color = AlmostBlack,
-                            fontSize = 15.sp
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        if (uiState.notes.isEmpty()) {
-                            Text(
-                                "Any special instructions? (optional)",
-                                color = MediumGray,
-                                fontSize = 15.sp
-                            )
-                        }
-                        it()
-                    }
-                }
-
-                Spacer(Modifier.height(32.dp))
-
-                // ── SUBMIT BUTTON ────────────────────────────────────
-                val canSubmit = uiState.selectedFile != null &&
-                        uiState.amount.isNotBlank() &&
-                        !uiState.uploadingFile
-
-                Button(
-                    onClick = {
-                        if (activity == null) return@Button
-                        viewModel.submitOrder { razorpayOrderId, amount ->
-                            startRazorpayPayment(
-                                activity = activity,
-                                razorpayOrderId = razorpayOrderId,
-                                amount = amount,
-                                onSuccess = { paymentId, signature ->
-                                    viewModel.verifyPayment(
-                                        razorpayOrderId = razorpayOrderId,
-                                        razorpayPaymentId = paymentId,
-                                        razorpaySignature = signature
-                                    )
-                                },
-                                onError = { error -> Log.e("RAZORPAY", error) }
-                            )
-                        }
-                    },
-                    enabled = canSubmit,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = DarkGreen,
-                        contentColor = Color.White,
-                        disabledContainerColor = MediumGray.copy(alpha = 0.2f),
-                        disabledContentColor = MediumGray.copy(alpha = 0.5f)
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp
-                    )
-                ) {
-                    Text(
-                        "Create Walk-In Order",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                }
-
-                Spacer(Modifier.height(40.dp))
-            }
-
-            // ── PROCESSING OVERLAY ───────────────────────────────
-            if (uiState.uploadingFile || uiState.isLoading) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Cream
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(
-                            color = DarkBlue,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        Text(
-                            text = if (uiState.uploadingFile)
-                                "Uploading file ${uiState.uploadProgress}%"
-                            else
-                                "Preparing your order",
-                            fontWeight = FontWeight.Bold,
-                            color = AlmostBlack,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = if (uiState.uploadingFile) "This might take a moment"
-                            else "Opening payment securely...",
-                            color = MediumGray,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-
-            // ── ERROR DIALOG ─────────────────────────────────────
-            uiState.error?.let {
-                AlertDialog(
-                    onDismissRequest = { viewModel.clearError() },
-                    containerColor = Cream,
-                    titleContentColor = AlmostBlack,
-                    textContentColor = MediumGray,
-                    confirmButton = {
-                        TextButton(
-                            onClick = { viewModel.clearError() },
-                            colors = ButtonDefaults.textButtonColors(contentColor = CoralRed)
-                        ) {
-                            Text("OK", fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    title = {
-                        Text("Something went wrong", fontWeight = FontWeight.Bold)
-                    },
-                    text = { Text(it) },
-                    shape = RoundedCornerShape(16.dp)
+            } else {
+                FormView(
+                    uiState    = uiState,
+                    viewModel  = viewModel,
+                    activity   = activity,
+                    onPickFile = { filePicker.launch(arrayOf("application/pdf", "image/png", "image/jpeg", "image/jpg")) }
                 )
             }
         }
     }
+}
 
-    // ── REUSABLE SECTION LABEL ───────────────────────────────
-    @Composable
-    private fun SectionLabel(text: String) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = AlmostBlack
+// ── Form ──────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun FormView(
+    uiState: WalkInOrderUiState,
+    viewModel: WalkInOrderViewModel,
+    activity: Activity?,
+    onPickFile: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    val scope       = rememberCoroutineScope()
+    val canSubmit   = uiState.selectedFile != null && uiState.amount.isNotBlank()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+        ) {
+            Spacer(Modifier.height(20.dp))
+
+            Text(
+                "Walk-In Order",
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                color = AlmostBlack
+            )
+            Text(
+                "Upload document (PDF, PNG, JPG)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MediumGray,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            Spacer(Modifier.height(28.dp))
+            SectionLabel("Document")
+            Spacer(Modifier.height(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (uiState.selectedFile != null) Color.Transparent else AlmostBlack.copy(alpha = 0.04f))
+                    .border(
+                        width = if (uiState.selectedFile != null) 2.dp else 1.5.dp,
+                        color = if (uiState.selectedFile != null) DarkBlue.copy(alpha = 0.7f) else AlmostBlack.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .clickable(onClick = onPickFile),
+                contentAlignment = Alignment.Center
+            ) {
+                if (uiState.selectedFile != null) {
+                    FilePreview(file = uiState.selectedFile!!, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)))
+                    Box(
+                        modifier = Modifier.align(Alignment.TopStart).padding(10.dp)
+                            .clip(RoundedCornerShape(8.dp)).background(AlmostBlack.copy(alpha = 0.6f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            if (uiState.pageCount > 0) "${uiState.pageCount} pages" else "Pages unknown",
+                            color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp)
+                            .clip(RoundedCornerShape(8.dp)).background(AlmostBlack.copy(alpha = 0.6f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("Tap to change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
+                                .background(DarkBlue.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, null, tint = DarkBlue, modifier = Modifier.size(30.dp))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text("Upload document (PDF, PNG, JPG)", color = AlmostBlack, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text("Max 500MB", color = MediumGray, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SectionLabel("Manual Price")
+            Spacer(Modifier.height(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (uiState.amount.isNotBlank()) DarkBlue.copy(alpha = 0.05f) else Color.Transparent)
+                    .border(
+                        width = if (uiState.amount.isNotBlank()) 2.dp else 1.5.dp,
+                        color = if (uiState.amount.isNotBlank()) DarkBlue.copy(alpha = 0.7f) else AlmostBlack.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "₹", fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                        color = if (uiState.amount.isNotBlank()) DarkBlue else MediumGray,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    BasicTextField(
+                        value = uiState.amount,
+                        onValueChange = { if (it.all { c -> c.isDigit() }) viewModel.setAmount(it) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AlmostBlack),
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { f ->
+                            if (f.isFocused) scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                        }
+                    ) { inner ->
+                        if (uiState.amount.isEmpty()) Text("Enter amount", color = MediumGray, fontSize = 16.sp)
+                        inner()
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SectionLabel("Notes")
+            Spacer(Modifier.height(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (uiState.notes.isNotBlank()) DarkBlue.copy(alpha = 0.05f) else Color.Transparent)
+                    .border(
+                        width = if (uiState.notes.isNotBlank()) 2.dp else 1.5.dp,
+                        color = if (uiState.notes.isNotBlank()) DarkBlue.copy(alpha = 0.7f) else AlmostBlack.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                BasicTextField(
+                    value = uiState.notes,
+                    onValueChange = viewModel::setNotes,
+                    minLines = 3,
+                    textStyle = LocalTextStyle.current.copy(color = AlmostBlack, fontSize = 15.sp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp)
+                ) {
+                    if (uiState.notes.isEmpty()) Text("Any special instructions? (optional)", color = MediumGray, fontSize = 15.sp)
+                    it()
+                }
+            }
+
+            Spacer(Modifier.height(210.dp))
+        }
+
+        WalkInFloatingPayBar(
+            isEnabled = canSubmit,
+            onSubmit  = {
+                if (activity == null) return@WalkInFloatingPayBar
+                viewModel.submitOrder { razorpayOrderId, amount ->
+                    startRazorpayPayment(
+                        activity, razorpayOrderId, amount,
+                        { pid, sig -> viewModel.verifyPayment(razorpayOrderId, pid, sig) },
+                        { Log.e("RAZORPAY", it) }
+                    )
+                }
+            }
         )
     }
+}
+
+// ── Processing ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ProcessingView(
+    stage: WalkInOrderStage,
+    uploadProgress: Int,
+    error: String?,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val currentIndex = stageIndex(stage)
+    val isFailed     = error != null
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(72.dp))
+
+        // Icon
+        AnimatedContent(
+            targetState = isFailed,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "top_icon"
+        ) { failed ->
+            Box(
+                modifier = Modifier.size(80.dp).clip(CircleShape)
+                    .background(if (failed) Color(0xFFFFEDED) else DarkBlue.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (failed) Icon(Icons.Default.Close, null, tint = Color(0xFFD32F2F), modifier = Modifier.size(36.dp))
+                else CircularProgressIndicator(color = DarkBlue, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Headline
+        AnimatedContent(
+            targetState = if (isFailed) "Something went wrong" else STEPS.getOrNull(currentIndex)?.label ?: "Processing…",
+            transitionSpec = { slideInVertically { it / 2 } + fadeIn() togetherWith slideOutVertically { -it / 2 } + fadeOut() },
+            label = "headline"
+        ) { text ->
+            Text(text, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                color = if (isFailed) Color(0xFFD32F2F) else AlmostBlack, textAlign = TextAlign.Center)
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        AnimatedContent(
+            targetState = when {
+                isFailed -> error ?: "Please try again"
+                stage == WalkInOrderStage.UploadingFile -> "Uploading… $uploadProgress%"
+                else -> STEPS.getOrNull(currentIndex)?.sub ?: ""
+            },
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "sublabel"
+        ) { sub ->
+            Text(sub, fontSize = 14.sp, color = MediumGray, textAlign = TextAlign.Center)
+        }
+
+        Spacer(Modifier.height(52.dp))
+
+        // Steps
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(AlmostBlack.copy(alpha = 0.04f))
+                .padding(vertical = 8.dp)
+        ) {
+            STEPS.forEachIndexed { index, step ->
+                val state = when {
+                    index < currentIndex               -> PStepState.Done
+                    index == currentIndex && !isFailed -> PStepState.Active
+                    index == currentIndex && isFailed  -> PStepState.Failed
+                    else                               -> PStepState.Pending
+                }
+                PStepRow(
+                    label    = step.label,
+                    state    = state,
+                    progress = if (step.stage == WalkInOrderStage.UploadingFile && state == PStepState.Active)
+                        uploadProgress / 100f else null
+                )
+                if (index < STEPS.lastIndex) {
+                    Box(
+                        modifier = Modifier.padding(start = 34.dp).width(2.dp).height(16.dp)
+                            .background(if (index < currentIndex) DarkBlue.copy(alpha = 0.4f) else AlmostBlack.copy(alpha = 0.12f))
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        if (isFailed) {
+            Button(
+                onClick = onRetry,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DarkBlue)
+            ) {
+                Text("Try Again", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+            Text("Cancel", color = if (isFailed) MediumGray else Color(0xFFD32F2F),
+                fontWeight = FontWeight.Medium, fontSize = 15.sp)
+        }
+
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
+// ── Step row ──────────────────────────────────────────────────────────────────
+
+private enum class PStepState { Pending, Active, Done, Failed }
+
+@Composable
+private fun PStepRow(label: String, state: PStepState, progress: Float?) {
+    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
+        initialValue = 0.85f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "pulse_scale"
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .scale(if (state == PStepState.Active) pulse else 1f)
+                .clip(CircleShape)
+                .background(when (state) {
+                    PStepState.Done    -> DarkBlue
+                    PStepState.Active  -> DarkBlue.copy(alpha = 0.15f)
+                    PStepState.Failed  -> Color(0xFFFFEDED)
+                    PStepState.Pending -> AlmostBlack.copy(alpha = 0.08f)
+                }),
+            contentAlignment = Alignment.Center
+        ) {
+            when (state) {
+                PStepState.Done    -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                PStepState.Active  -> CircularProgressIndicator(color = DarkBlue, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                PStepState.Failed  -> Icon(Icons.Default.Close, null, tint = Color(0xFFD32F2F), modifier = Modifier.size(14.dp))
+                PStepState.Pending -> Unit
+            }
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label, fontSize = 15.sp,
+                fontWeight = if (state == PStepState.Active) FontWeight.SemiBold else FontWeight.Normal,
+                color = when (state) {
+                    PStepState.Done, PStepState.Active -> AlmostBlack
+                    PStepState.Failed  -> Color(0xFFD32F2F)
+                    PStepState.Pending -> MediumGray
+                }
+            )
+            if (progress != null) {
+                Spacer(Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
+                    color = DarkBlue, trackColor = DarkBlue.copy(alpha = 0.15f)
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = state == PStepState.Done,
+            enter = scaleIn(spring(Spring.DampingRatioMediumBouncy)),
+            exit  = scaleOut()
+        ) {
+            Text(
+                "Done", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkBlue,
+                modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                    .background(DarkBlue.copy(alpha = 0.1f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            )
+        }
+    }
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AlmostBlack)
+}

@@ -29,6 +29,8 @@ import com.docuvio.app.core.auth.TokenManager
 import com.docuvio.app.theme.*
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import okhttp3.*
+import androidx.compose.material.icons.filled.*
+
 
 /* ---------------- GOOGLE FORM SUBMIT FUNCTION ---------------- */
 
@@ -112,11 +114,11 @@ fun FeedbackScreen(
         "General Feedback"
     )
 
-    val optionEmojis = mapOf(
-        "Bug / App Crash" to "🐛",
-        "Feature Request" to "✨",
-        "Improvement Suggestion" to "💡",
-        "General Feedback" to "💬"
+    val optionIcons = mapOf(
+        "Bug / App Crash" to Icons.Default.BugReport,
+        "Feature Request" to Icons.Default.AutoAwesome,
+        "Improvement Suggestion" to Icons.Default.Lightbulb,
+        "General Feedback" to Icons.Default.Chat
     )
 
     val starLabels = mapOf(
@@ -277,12 +279,25 @@ fun FeedbackScreen(
                                     )
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "${optionEmojis[option]} $option",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) AlmostBlack else Color(0xFF6B6560)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = optionIcons[option]!!,
+                                        contentDescription = option,
+                                        tint = if (isSelected) AlmostBlack else Color(0xFF6B6560),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Text(
+                                        text = option,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isSelected) AlmostBlack else Color(0xFF6B6560)
+                                    )
+                                }
                             }
                         }
                     }

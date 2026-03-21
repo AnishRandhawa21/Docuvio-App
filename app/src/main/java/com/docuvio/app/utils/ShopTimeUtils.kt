@@ -5,7 +5,7 @@ object ShopTimeUtils {
 
     private val formatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
-    private val systemStart = LocalTime.of(0, 0)   // 12:00 AM
+    private val systemStart = LocalTime.of(1, 0)   // 12:00 AM
     private val systemEnd = LocalTime.of(6, 0)     // 6:00 AM
 
     fun isSystemUnavailable(): Boolean {

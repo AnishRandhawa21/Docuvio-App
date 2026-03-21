@@ -10,17 +10,31 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 
+enum class WalkInOrderStage {
+    Idle,
+    CreatingOrder,
+    UploadingFile,
+    AttachingDocument,
+    CreatingPayment,
+    WaitingForPayment,   // payment sheet is open — block UI but don't show spinner
+    VerifyingPayment,
+}
+
 data class WalkInOrderUiState(
-    val isLoading: Boolean = false,
+    val stage: WalkInOrderStage = WalkInOrderStage.Idle,
     val pageCount: Int = 0,
-    val uploadingFile: Boolean = false,
     val uploadProgress: Int = 0,
     val selectedFile: File? = null,
     val amount: String = "",
     val notes: String = "",
     val error: String? = null,
     val isSuccess: Boolean = false
-)
+) {
+    // convenience helpers so the UI doesn't need to import the enum
+    val isLoading: Boolean get() = stage != WalkInOrderStage.Idle && stage != WalkInOrderStage.WaitingForPayment
+    val uploadingFile: Boolean get() = stage == WalkInOrderStage.UploadingFile
+    val isWaitingForPayment: Boolean get() = stage == WalkInOrderStage.WaitingForPayment
+}
 
 class WalkInOrderViewModel(
     private val orderRepository: OrderRepository,
@@ -48,14 +62,14 @@ class WalkInOrderViewModel(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.value = _uiState.value.copy(error = null, stage = WalkInOrderStage.Idle)
     }
+
     fun resetState() {
         _uiState.value = WalkInOrderUiState()
     }
 
     fun submitOrder(onPaymentRequired: (String, Int) -> Unit) {
-
         viewModelScope.launch {
 
             val state = _uiState.value
@@ -66,15 +80,13 @@ class WalkInOrderViewModel(
             }
 
             val price = state.amount.toIntOrNull()
-
             if (price == null || price <= 0) {
                 _uiState.value = state.copy(error = "Invalid amount")
                 return@launch
             }
 
-            _uiState.value = state.copy(isLoading = true)
-
             /* 1️⃣ CREATE WALK-IN ORDER */
+            _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.CreatingOrder)
 
             val orderResult = orderRepository.createWalkInOrder(
                 shopId = shopId,
@@ -82,8 +94,8 @@ class WalkInOrderViewModel(
             )
 
             if (orderResult is Result.Error) {
-                _uiState.value = state.copy(
-                    isLoading = false,
+                _uiState.value = _uiState.value.copy(
+                    stage = WalkInOrderStage.Idle,
                     error = orderResult.message
                 )
                 return@launch
@@ -93,26 +105,21 @@ class WalkInOrderViewModel(
             currentOrderId = orderId
 
             /* 2️⃣ UPLOAD FILE */
-
             _uiState.value = _uiState.value.copy(
-                uploadingFile = true,
+                stage = WalkInOrderStage.UploadingFile,
                 uploadProgress = 0
             )
 
             val uploadResult = orderRepository.uploadFile(
                 file = file,
                 onProgress = { percent ->
-                    _uiState.value = _uiState.value.copy(
-                        uploadProgress = percent
-                    )
+                    _uiState.value = _uiState.value.copy(uploadProgress = percent)
                 }
             )
 
-            _uiState.value = _uiState.value.copy(uploadingFile = false)
-
             if (uploadResult is Result.Error) {
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
+                    stage = WalkInOrderStage.Idle,
                     error = uploadResult.message
                 )
                 return@launch
@@ -121,42 +128,51 @@ class WalkInOrderViewModel(
             val fileKey = (uploadResult as Result.Success).data.fileKey
 
             /* 3️⃣ ATTACH DOCUMENT */
+            _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.AttachingDocument)
 
-            val attachResult =
-                orderRepository.attachWalkInDocument(
-                    orderId = orderId,
-                    fileKey = fileKey,
-                    fileName = file.name,
-                    manualPrice = price
-                )
+            val attachResult = orderRepository.attachWalkInDocument(
+                orderId = orderId,
+                fileKey = fileKey,
+                fileName = file.name,
+                manualPrice = price
+            )
 
             if (attachResult is Result.Error) {
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
+                    stage = WalkInOrderStage.Idle,
                     error = attachResult.message
                 )
                 return@launch
             }
 
             /* 4️⃣ CREATE PAYMENT */
+            _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.CreatingPayment)
 
             val paymentResult = orderRepository.createPayment(orderId)
 
-            if (paymentResult is Result.Success) {
+            if (paymentResult is Result.Error) {
+                _uiState.value = _uiState.value.copy(
+                    stage = WalkInOrderStage.Idle,
+                    error = paymentResult.message
+                )
+                return@launch
+            }
 
+            if (paymentResult is Result.Success) {
                 val razorpayOrderId = paymentResult.data.id
                 val amount = paymentResult.data.amount
 
                 if (!razorpayOrderId.isNullOrBlank() && amount != null) {
+                    /* Move to WaitingForPayment BEFORE opening the sheet,
+                       so the spinner clears and Razorpay can render cleanly */
+                    _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.WaitingForPayment)
                     onPaymentRequired(razorpayOrderId, amount)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        stage = WalkInOrderStage.Idle,
+                        error = "Payment data missing"
+                    )
                 }
-
-            } else if (paymentResult is Result.Error) {
-
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = paymentResult.message
-                )
             }
         }
     }
@@ -166,10 +182,10 @@ class WalkInOrderViewModel(
         razorpayPaymentId: String,
         razorpaySignature: String
     ) {
-
         val orderId = currentOrderId ?: return
 
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.VerifyingPayment)
 
             val result = orderRepository.verifyPayment(
                 razorpayOrderId,
@@ -179,24 +195,22 @@ class WalkInOrderViewModel(
             )
 
             if (result is Result.Success) {
-
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
+                    stage = WalkInOrderStage.Idle,
                     isSuccess = true
                 )
-
             } else if (result is Result.Error) {
-
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
+                    stage = WalkInOrderStage.Idle,
                     error = result.message
                 )
             }
         }
     }
+
     fun setPaymentCancelled() {
         _uiState.value = _uiState.value.copy(
-            isLoading = false,
+            stage = WalkInOrderStage.Idle,
             error = "Payment cancelled"
         )
     }
