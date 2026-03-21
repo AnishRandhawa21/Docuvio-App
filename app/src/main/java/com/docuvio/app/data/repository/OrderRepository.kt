@@ -3,7 +3,6 @@ package com.docuvio.app.data.repository
 import android.util.Log
 import com.docuvio.app.data.api.OrderApi
 import com.docuvio.app.data.model.*
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -42,62 +41,99 @@ class OrderRepository(
             if (!response.isSuccessful) {
                 Log.e("ORDER_REPO", "Create order failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Please try again later.")
-
-                    500 ->
-                        Result.Error("Server error. Please try again later.")
-
-                    else ->
-                        Result.Error("Failed to create order.")
+                    401, 403 -> Result.Error("Please try again later.")
+                    500      -> Result.Error("Server error. Please try again later.")
+                    else     -> Result.Error("Failed to create order.")
                 }
             }
-
-            val body = response.body()
-                ?: return Result.Error("Empty server response.")
-
+            val body = response.body() ?: return Result.Error("Empty server response.")
             Result.Success(body.data)
-
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Create order exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
         }
     }
 
-    /* ---------------- UPLOAD FILE ---------------- */
+    /* ---------------- UPLOAD FILE (simple, no progress) ---------------- */
+    // Used internally — kept for backwards compat but now accepts mimeType.
 
-    suspend fun uploadFile(file: File): Result<UploadData> {
+    suspend fun uploadFile(
+        file: File,
+        mimeType: String = "application/octet-stream"    // ← default so existing callers don't break
+    ): Result<UploadData> {
         return try {
-            val requestFile =
-                file.asRequestBody("application/pdf".toMediaTypeOrNull())
-
-            val body =
-                MultipartBody.Part.createFormData("file", file.name, requestFile)
-
-            val response = orderApi.uploadFile(body)
+            val requestBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
+            val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
+            val response = orderApi.uploadFile(part)
 
             if (!response.isSuccessful) {
                 Log.e("ORDER_REPO", "Upload file failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Please login again.")
-
-                    413 ->
-                        Result.Error("File too large.")
-
-                    500 ->
-                        Result.Error("Server error while uploading file.")
-
-                    else ->
-                        Result.Error("File upload failed.")
+                    401, 403 -> Result.Error("Please login again.")
+                    413      -> Result.Error("File too large.")
+                    500      -> Result.Error("Server error while uploading file.")
+                    else     -> Result.Error("File upload failed.")
                 }
             }
 
-            val data = response.body()?.data
-                ?: return Result.Error("Empty upload response")
-
+            val data = response.body()?.data ?: return Result.Error("Empty upload response")
             Result.Success(data)
+        } catch (e: Exception) {
+            Log.e("ORDER_REPO", "Upload file exception: ${e.message}", e)
+            Result.Error(mapNetworkError(e))
+        }
+    }
 
+    /* ---------------- UPLOAD FILE (with progress) ---------------- */
+    // Used by both CreateOrder and WalkInOrder flows.
+    // mimeType is now passed in — was previously hardcoded to "application/pdf",
+    // which caused JPEG/PNG files to be corrupted on the server side.
+
+    suspend fun uploadFile(
+        file: File,
+        mimeType: String,                               // ← THE FIX: no longer hardcoded
+        onProgress: (Int) -> Unit
+    ): Result<UploadData> {
+        return try {
+            val resolvedType = mimeType.toMediaTypeOrNull()
+                ?: "application/octet-stream".toMediaTypeOrNull()
+
+            val requestBody = object : RequestBody() {
+
+                override fun contentType() = resolvedType  // ← was "application/pdf".toMediaType()
+
+                override fun contentLength() = file.length()
+
+                override fun writeTo(sink: BufferedSink) {
+                    val source = file.source()
+                    val buffer = Buffer()
+                    var totalBytes = 0L
+                    val fileLength = file.length()
+                    var read: Long
+                    while (source.read(buffer, 8_192).also { read = it } != -1L) {
+                        sink.write(buffer, read)
+                        totalBytes += read
+                        val progress = ((totalBytes * 100) / fileLength).toInt()
+                        onProgress(progress)
+                    }
+                }
+            }
+
+            val part = MultipartBody.Part.createFormData("file", file.name, requestBody)
+            val response = orderApi.uploadFile(part)
+
+            if (!response.isSuccessful) {
+                Log.e("ORDER_REPO", "Upload file failed: ${response.code()} - ${response.errorBody()?.string()}")
+                return when (response.code()) {
+                    401, 403 -> Result.Error("Session expired. Please login again.")
+                    413      -> Result.Error("File too large.")
+                    500      -> Result.Error("Server error while uploading file.")
+                    else     -> Result.Error("File upload failed.")
+                }
+            }
+
+            val data = response.body()?.data ?: return Result.Error("Empty upload response")
+            Result.Success(data)
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Upload file exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
@@ -132,23 +168,15 @@ class OrderRepository(
                     pickupAt = pickupAt,
                 )
             )
-
             if (!response.isSuccessful) {
                 Log.e("ORDER_REPO", "Attach document failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Session expired. Please login again.")
-
-                    500 ->
-                        Result.Error("Server error. Please try again later.")
-
-                    else ->
-                        Result.Error("Failed to attach document.")
+                    401, 403 -> Result.Error("Session expired. Please login again.")
+                    500      -> Result.Error("Server error. Please try again later.")
+                    else     -> Result.Error("Failed to attach document.")
                 }
             }
-
             Result.Success(Unit)
-
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Attach document exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
@@ -160,26 +188,16 @@ class OrderRepository(
     suspend fun getOrders(): Result<OrdersResponse> {
         return try {
             val response = orderApi.getOrders()
-
             if (!response.isSuccessful) {
                 Log.e("ORDER_REPO", "Get orders failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Session expired. Please login again.")
-
-                    500 ->
-                        Result.Error("Server error. Please try again later.")
-
-                    else ->
-                        Result.Error("Failed to load orders.")
+                    401, 403 -> Result.Error("Session expired. Please login again.")
+                    500      -> Result.Error("Server error. Please try again later.")
+                    else     -> Result.Error("Failed to load orders.")
                 }
             }
-
-            val body = response.body()
-                ?: return Result.Error("Empty response")
-
+            val body = response.body() ?: return Result.Error("Empty response")
             Result.Success(body)
-
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Get orders exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
@@ -191,23 +209,18 @@ class OrderRepository(
     suspend fun createPayment(orderId: String): Result<CreatePaymentResponse> {
         return try {
             Log.d("ORDER_REPO", "Creating payment for order: $orderId")
-
-            val response = orderApi.createPayment(
-                CreatePaymentRequest(orderId)
-            )
-
+            val response = orderApi.createPayment(CreatePaymentRequest(orderId))
             Log.d("ORDER_REPO", "Payment API response code: ${response.code()}")
 
             if (!response.isSuccessful) {
                 val errorBody = response.errorBody()?.string()
                 Log.e("ORDER_REPO", "Create payment failed: ${response.code()} - $errorBody")
-
                 return when (response.code()) {
-                    400 -> Result.Error("Invalid order. Error: $errorBody")
+                    400      -> Result.Error("Invalid order. Error: $errorBody")
                     401, 403 -> Result.Error("Session expired. Please login again.")
-                    404 -> Result.Error("Retry")
-                    500 -> Result.Error("Server error. Please try again later.")
-                    else -> Result.Error("Payment creation failed: $errorBody")
+                    404      -> Result.Error("Retry")
+                    500      -> Result.Error("Server error. Please try again later.")
+                    else     -> Result.Error("Payment creation failed: $errorBody")
                 }
             }
 
@@ -220,20 +233,17 @@ class OrderRepository(
             val body = apiResponse.data
             Log.d("ORDER_REPO", "📦 Data: $body")
 
-            // 🔥 VALIDATE DATA
             if (body.id.isNullOrBlank()) {
                 Log.e("ORDER_REPO", "❌ Razorpay order_id is null or empty!")
                 return Result.Error("Invalid payment response: missing order ID")
             }
-
             if (body.amount == null || body.amount == 0) {
                 Log.e("ORDER_REPO", "❌ Payment amount is null or zero!")
                 return Result.Error("Invalid payment response: missing amount")
             }
 
-            Log.d("ORDER_REPO", "✅ Payment created successfully: order_id=${body.id}, amount=${body.amount}")
+            Log.d("ORDER_REPO", "✅ Payment created: order_id=${body.id}, amount=${body.amount}")
             Result.Success(body)
-
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Create payment exception: ${e.message}", e)
             e.printStackTrace()
@@ -249,111 +259,53 @@ class OrderRepository(
     ): Result<VerifyPaymentResponse> {
         return try {
             Log.d("ORDER_REPO", "Verifying payment - Order: $orderId, Payment: $razorpayPaymentId")
-
             val response = orderApi.verifyPayment(
-                VerifyPaymentRequest(
-                    razorpayOrderId,
-                    razorpayPaymentId,
-                    razorpaySignature,
-                    orderId
-                )
+                VerifyPaymentRequest(razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId)
             )
-
             if (!response.isSuccessful) {
                 val errorBody = response.errorBody()?.string()
                 Log.e("ORDER_REPO", "Verify payment failed: ${response.code()} - $errorBody")
-
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Session expired. Please login again.")
-
-                    500 ->
-                        Result.Error("Payment verification failed.")
-
-                    else ->
-                        Result.Error("Payment verification failed: $errorBody")
+                    401, 403 -> Result.Error("Session expired. Please login again.")
+                    500      -> Result.Error("Payment verification failed.")
+                    else     -> Result.Error("Payment verification failed: $errorBody")
                 }
             }
-
-            val body = response.body()
-            if (body == null) {
-                Log.e("ORDER_REPO", "Verify payment response body is null")
-                return Result.Error("Empty verification response")
-            }
-
+            val body = response.body() ?: return Result.Error("Empty verification response")
             Log.d("ORDER_REPO", "Payment verified successfully")
             Result.Success(body)
-
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Verify payment exception: ${e.message}", e)
             e.printStackTrace()
             Result.Error(mapNetworkError(e))
         }
     }
+
     /* ---------------- CREATE WALK-IN ORDER ---------------- */
 
     suspend fun createWalkInOrder(
         shopId: String,
         notes: String?
     ): Result<CreateOrderResponse> {
-
         return try {
-
-            val response = orderApi.createWalkInOrder(
-                WalkInOrderRequest(
-                    shopId = shopId,
-                    notes = notes
-                )
-            )
-
+            val response = orderApi.createWalkInOrder(WalkInOrderRequest(shopId = shopId, notes = notes))
             if (!response.isSuccessful) {
-
-                Log.e(
-                    "ORDER_REPO",
-                    "Walk-in order failed: ${response.code()} - ${response.errorBody()?.string()}"
-                )
-
+                Log.e("ORDER_REPO", "Walk-in order failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Session expired. Please login again.")
-
-                    500 ->
-                        Result.Error("Server error. Please try again later.")
-
-                    else ->
-                        Result.Error("Failed to create walk-in order.")
+                    401, 403 -> Result.Error("Session expired. Please login again.")
+                    500      -> Result.Error("Server error. Please try again later.")
+                    else     -> Result.Error("Failed to create walk-in order.")
                 }
             }
-
-            val body = response.body()
-                ?: return Result.Error("Empty server response")
-
+            val body = response.body() ?: return Result.Error("Empty server response")
             Result.Success(body.data)
-
         } catch (e: Exception) {
-
             Log.e("ORDER_REPO", "Walk-in order exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
         }
     }
 
-    /* ---------------- ERROR MAPPER ---------------- */
-
-    private fun mapNetworkError(e: Exception): String {
-        return when (e) {
-            is UnknownHostException ->
-                "No internet connection."
-
-            is SocketTimeoutException ->
-                "Connection timed out. Please try again."
-
-            is IOException ->
-                "Network error. Please check your connection."
-
-            else ->
-                "Something went wrong: ${e.message}"
-        }
-    }
+    /* ---------------- ATTACH WALK-IN DOCUMENT ---------------- */
 
     suspend fun attachWalkInDocument(
         orderId: String,
@@ -361,9 +313,7 @@ class OrderRepository(
         fileName: String,
         manualPrice: Int
     ): Result<Unit> {
-
         return try {
-
             val response = orderApi.attachWalkInDocument(
                 orderId,
                 AttachWalkInDocument(
@@ -373,116 +323,29 @@ class OrderRepository(
                     manualPrice = manualPrice
                 )
             )
-
             if (!response.isSuccessful) {
-
-                Log.e(
-                    "ORDER_REPO",
-                    "Attach walk-in document failed: ${response.code()} - ${response.errorBody()?.string()}"
-                )
-
+                Log.e("ORDER_REPO", "Attach walk-in document failed: ${response.code()} - ${response.errorBody()?.string()}")
                 return when (response.code()) {
-                    401, 403 ->
-                        Result.Error("Session expired. Please login again.")
-
-                    500 ->
-                        Result.Error("Server error. Please try again later.")
-
-                    else ->
-                        Result.Error("Failed to attach walk-in document.")
+                    401, 403 -> Result.Error("Session expired. Please login again.")
+                    500      -> Result.Error("Server error. Please try again later.")
+                    else     -> Result.Error("Failed to attach walk-in document.")
                 }
             }
-
             Result.Success(Unit)
-
         } catch (e: Exception) {
-
             Log.e("ORDER_REPO", "Attach walk-in document exception: ${e.message}", e)
-
             Result.Error(mapNetworkError(e))
         }
     }
 
-    //Order Loading
+    /* ---------------- ERROR MAPPER ---------------- */
 
-    suspend fun uploadFile(
-        file: File,
-        onProgress: (Int) -> Unit
-    ): Result<UploadData> {
-
-        return try {
-
-            val requestBody = object : RequestBody() {
-
-                override fun contentType() =
-                    "application/pdf".toMediaType()
-
-                override fun contentLength() = file.length()
-
-                override fun writeTo(sink: BufferedSink) {
-
-                    val source = file.source()
-                    val buffer = Buffer()
-
-                    var totalBytes = 0L
-                    val fileLength = file.length()
-
-                    var read: Long
-
-                    while (source.read(buffer, 8_192).also { read = it } != -1L) {
-
-                        sink.write(buffer, read)
-
-                        totalBytes += read
-
-                        val progress = ((totalBytes * 100) / fileLength).toInt()
-
-                        onProgress(progress)
-                    }
-                }
-            }
-
-            val part = MultipartBody.Part.createFormData(
-                "file",
-                file.name,
-                requestBody
-            )
-
-            val response = orderApi.uploadFile(part)
-
-            if (!response.isSuccessful) {
-
-                Log.e(
-                    "ORDER_REPO",
-                    "Upload file failed: ${response.code()} - ${response.errorBody()?.string()}"
-                )
-
-                return when (response.code()) {
-
-                    401, 403 ->
-                        Result.Error("Session expired. Please login again.")
-
-                    413 ->
-                        Result.Error("File too large.")
-
-                    500 ->
-                        Result.Error("Server error while uploading file.")
-
-                    else ->
-                        Result.Error("File upload failed.")
-                }
-            }
-
-            val data = response.body()?.data
-                ?: return Result.Error("Empty upload response")
-
-            Result.Success(data)
-
-        } catch (e: Exception) {
-
-            Log.e("ORDER_REPO", "Upload file exception: ${e.message}", e)
-
-            Result.Error(mapNetworkError(e))
+    private fun mapNetworkError(e: Exception): String {
+        return when (e) {
+            is UnknownHostException  -> "No internet connection."
+            is SocketTimeoutException -> "Connection timed out. Please try again."
+            is IOException           -> "Network error. Please check your connection."
+            else                     -> "Something went wrong: ${e.message}"
         }
     }
 }

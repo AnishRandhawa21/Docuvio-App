@@ -29,6 +29,7 @@ data class CreateOrderUiState(
     val shop: Shop? = null,
     val description: String = "",
     val selectedFile: File? = null,
+    val selectedFileMimeType: String = "application/octet-stream",  // ← MIME carried through upload
     val selectedPaperType: PaperType? = null,
     val selectedColorMode: ColorMode? = null,
     val selectedFinishType: FinishType? = null,
@@ -38,7 +39,7 @@ data class CreateOrderUiState(
     val pickupAt: String? = null,
     val isHandled: Boolean = false,
     val handlingFee: Int = 0,
-    val uploadProgress: Int = 0,        // ← added
+    val uploadProgress: Int = 0,
     val error: String? = null,
     val isSuccess: Boolean = false,
     val currentStep: OrderStep = OrderStep.LOADING_OPTIONS
@@ -92,7 +93,9 @@ class CreateOrderViewModel(
                         currentStep = OrderStep.SELECT_OPTIONS
                     )
                     is Result.Error -> _uiState.value = _uiState.value.copy(
-                        isLoading = false, error = result.message, currentStep = OrderStep.SELECT_OPTIONS
+                        isLoading = false,
+                        error = result.message,
+                        currentStep = OrderStep.SELECT_OPTIONS
                     )
                     is Result.Loading -> _uiState.value = _uiState.value.copy(isLoading = true)
                 }
@@ -117,27 +120,49 @@ class CreateOrderViewModel(
     fun setOrientation(orientation: PrintOrientation) { _uiState.value = _uiState.value.copy(orientation = orientation) }
     fun setDescription(value: String) { _uiState.value = _uiState.value.copy(description = value) }
     fun clearError() { _uiState.update { it.copy(error = null) } }
+    fun setError(message: String) { _uiState.update { it.copy(error = message) } }
 
     fun setPickupAt(pickupAtIso: String) {
         val handled = isTomorrowPickup(pickupAtIso)
-        _uiState.update { it.copy(pickupAt = pickupAtIso, isHandled = handled, handlingFee = if (handled) 10 else 0) }
+        _uiState.update {
+            it.copy(
+                pickupAt = pickupAtIso,
+                isHandled = handled,
+                handlingFee = if (handled) 10 else 0
+            )
+        }
     }
 
     /* ---------------- FILE READ ---------------- */
 
-    fun setFileAndReadPages(context: Context, file: File) {
-        _uiState.value = _uiState.value.copy(selectedFile = file)
+    fun setFileAndReadPages(context: Context, file: File, mimeType: String) {
+        val canonical = normaliseMime(mimeType)
+        val correctExt = mimeToExtension(canonical)
+
+        // Ensure the cached file has the right extension so OkHttp/server see a proper filename
+        val renamedFile = if (file.extension.lowercase() != correctExt) {
+            File(file.parent, "upload_${System.currentTimeMillis()}.$correctExt")
+                .also { dest -> file.renameTo(dest) }
+        } else file
+
+        _uiState.value = _uiState.value.copy(
+            selectedFile = renamedFile,
+            selectedFileMimeType = canonical
+        )
+
         viewModelScope.launch {
             try {
-                val pageCount = when (file.extension.lowercase()) {
-                    "pdf" -> PdfUtils.getPdfPageCount(context, file)
-                    "png", "jpg", "jpeg", "webp" -> 1
-                    else -> 1
+                val pageCount = when (canonical) {
+                    "application/pdf" -> PdfUtils.getPdfPageCount(context, renamedFile)
+                    else -> 1   // images are always 1 page
                 }
                 _uiState.value = _uiState.value.copy(pageCount = pageCount)
             } catch (e: Exception) {
                 Log.e("FILE_READ", "Error reading file", e)
-                _uiState.value = _uiState.value.copy(error = "Unsupported file or failed to read", pageCount = 1)
+                _uiState.value = _uiState.value.copy(
+                    error = "Unsupported file or failed to read",
+                    pageCount = 1
+                )
             }
         }
     }
@@ -149,17 +174,17 @@ class CreateOrderViewModel(
             val state = _uiState.value
 
             val shop = state.shop ?: run {
-                _uiState.value = state.copy(isLoading = false, error = "Shop unavailable")
+                _uiState.value = state.copy(error = "Shop unavailable")
                 return@launch
             }
 
             if (!canCreateOrderNow(shop, state.pickupAt)) {
-                _uiState.value = state.copy(isLoading = false, error = "Orders are closed for today. Please try again later.")
+                _uiState.value = state.copy(error = "Orders are closed for today. Please try again later.")
                 return@launch
             }
 
             val file = state.selectedFile ?: run {
-                _uiState.value = state.copy(isLoading = false, error = "Please select a file")
+                _uiState.value = state.copy(error = "Please select a file")
                 return@launch
             }
 
@@ -168,12 +193,15 @@ class CreateOrderViewModel(
             val finish = state.selectedFinishType
 
             if (paper == null || color == null || finish == null) {
-                _uiState.value = state.copy(isLoading = false, error = "Please select print options first")
+                _uiState.value = state.copy(error = "Please select print options first")
                 return@launch
             }
 
             /* 1️⃣ CREATE ORDER */
-            _uiState.value = state.copy(isLoading = true, currentStep = OrderStep.CREATING_ORDER)
+            _uiState.value = state.copy(
+                isLoading = true,
+                currentStep = OrderStep.CREATING_ORDER
+            )
 
             val orderResult = orderRepository.createOrder(
                 shopId = shopId,
@@ -184,34 +212,47 @@ class CreateOrderViewModel(
             )
 
             if (orderResult !is Result.Success) {
-                _uiState.value = state.copy(isLoading = false, error = (orderResult as Result.Error).message, currentStep = OrderStep.SELECT_OPTIONS)
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = (orderResult as Result.Error).message,
+                    currentStep = OrderStep.SELECT_OPTIONS
+                )
                 return@launch
             }
 
             val orderId = orderResult.data.id
             currentOrderId = orderId
 
-            /* 2️⃣ UPLOAD FILE */
+            /* 2️⃣ UPLOAD FILE — pass resolved MIME type so backend gets correct Content-Type */
             _uiState.value = _uiState.value.copy(
                 currentStep = OrderStep.UPLOADING,
-                uploadProgress = 0          // ← reset before upload
+                uploadProgress = 0
             )
 
             val uploadResult = orderRepository.uploadFile(
                 file = file,
-                onProgress = { percent ->   // ← same callback as WalkIn
+                mimeType = state.selectedFileMimeType,  // ← THE FIX
+                onProgress = { percent ->
                     _uiState.value = _uiState.value.copy(uploadProgress = percent)
                 }
             )
 
             if (uploadResult !is Result.Success) {
-                _uiState.value = state.copy(isLoading = false, error = (uploadResult as Result.Error).message, currentStep = OrderStep.SELECT_OPTIONS)
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = (uploadResult as Result.Error).message,
+                    currentStep = OrderStep.SELECT_OPTIONS
+                )
                 return@launch
             }
 
             val fileKey = uploadResult.data.fileKey
             if (fileKey.isNullOrBlank()) {
-                _uiState.value = state.copy(isLoading = false, error = "File upload failed. Please try again.", currentStep = OrderStep.SELECT_OPTIONS)
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = "File upload failed. Please try again.",
+                    currentStep = OrderStep.SELECT_OPTIONS
+                )
                 return@launch
             }
 
@@ -232,7 +273,11 @@ class CreateOrderViewModel(
             )
 
             if (attachResult !is Result.Success) {
-                _uiState.value = state.copy(isLoading = false, error = (attachResult as Result.Error).message, currentStep = OrderStep.SELECT_OPTIONS)
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = (attachResult as Result.Error).message,
+                    currentStep = OrderStep.SELECT_OPTIONS
+                )
                 return@launch
             }
 
@@ -249,26 +294,50 @@ class CreateOrderViewModel(
                 val razorpayOrderId = paymentResult.data.id
                 val amount = paymentResult.data.amount
                 if (razorpayOrderId.isNullOrBlank() || amount == null || amount == 0) {
-                    _uiState.value = state.copy(isLoading = false, error = "Payment creation failed", currentStep = OrderStep.SELECT_OPTIONS)
+                    _uiState.value = state.copy(
+                        isLoading = false,
+                        error = "Payment creation failed",
+                        currentStep = OrderStep.SELECT_OPTIONS
+                    )
                     return@launch
                 }
                 onPaymentRequired(razorpayOrderId, amount)
             } else {
-                _uiState.value = state.copy(isLoading = false, error = (paymentResult as Result.Error).message, currentStep = OrderStep.SELECT_OPTIONS)
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = (paymentResult as Result.Error).message,
+                    currentStep = OrderStep.SELECT_OPTIONS
+                )
             }
         }
     }
 
     /* ---------------- VERIFY PAYMENT ---------------- */
 
-    fun verifyPayment(razorpayOrderId: String, razorpayPaymentId: String, razorpaySignature: String) {
+    fun verifyPayment(
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String
+    ) {
         val orderId = currentOrderId ?: return
         viewModelScope.launch {
-            val result = orderRepository.verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId)
+            val result = orderRepository.verifyPayment(
+                razorpayOrderId,
+                razorpayPaymentId,
+                razorpaySignature,
+                orderId
+            )
             if (result is Result.Success) {
-                _uiState.value = _uiState.value.copy(isLoading = false, isSuccess = true, currentStep = OrderStep.SUCCESS)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isSuccess = true,
+                    currentStep = OrderStep.SUCCESS
+                )
             } else {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = (result as Result.Error).message)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = (result as Result.Error).message
+                )
             }
         }
     }
@@ -277,7 +346,61 @@ class CreateOrderViewModel(
         _uiState.update { it.copy(currentStep = OrderStep.SELECT_OPTIONS, error = "Payment cancelled") }
     }
 
-    /* ---------------- HELPERS ---------------- */
+    /* ---------------- CV MODE ---------------- */
+
+    fun enableCvMode() {
+        val options = _uiState.value.printOptions ?: return
+
+        val bondPaper = options.paperTypes.find { it.name.lowercase() == "bond" }
+        val bondColor = options.colorModes.find { it.name.lowercase() == "bond" }
+        val normalFinish = options.finishTypes.find { it.name.lowercase() == "normal" }
+            ?: options.finishTypes.firstOrNull { it.name.lowercase() != "bond" }
+
+        if (bondPaper == null) {
+            _uiState.update { it.copy(error = "CV printing not available at this shop") }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                isCvMode = true,
+                selectedPaperType = bondPaper,
+                selectedColorMode = bondColor ?: it.selectedColorMode,
+                selectedFinishType = normalFinish ?: it.selectedFinishType,
+            )
+        }
+    }
+
+    fun disableCvMode() {
+        _uiState.update {
+            it.copy(
+                isCvMode = false,
+                selectedPaperType = null,
+                selectedFinishType = null,
+                selectedColorMode = it.printOptions
+                    ?.colorModes
+                    ?.firstOrNull { cm -> cm.name.lowercase() != "bond" },
+            )
+        }
+    }
+
+    fun toggleCvMode() {
+        if (_uiState.value.isCvMode) disableCvMode() else enableCvMode()
+    }
+
+    /* ---------------- PRIVATE HELPERS ---------------- */
+
+    private fun normaliseMime(mime: String): String = when (mime.lowercase().trim()) {
+        "image/jpg", "image/pjpeg" -> "image/jpeg"
+        else -> mime
+    }
+
+    private fun mimeToExtension(mime: String): String = when (mime) {
+        "image/jpeg"      -> "jpg"
+        "image/png"       -> "png"
+        "application/pdf" -> "pdf"
+        else              -> "bin"
+    }
 
     private fun isTomorrowPickup(pickupAtIso: String): Boolean {
         val date = parseIsoDate(pickupAtIso)
@@ -304,7 +427,7 @@ class CreateOrderViewModel(
         viewModelScope.launch {
             when (val result = shopRepository.getShop(shopId)) {
                 is Result.Success -> _uiState.update { it.copy(shop = result.data) }
-                is Result.Error   -> _uiState.update { it.copy(error = result.message) }
+                is Result.Error -> _uiState.update { it.copy(error = result.message) }
                 else -> {}
             }
         }
@@ -312,8 +435,10 @@ class CreateOrderViewModel(
 
     private fun parseIsoDate(iso: String): Date {
         val formats = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
             "yyyy-MM-dd'T'HH:mm:ss"
         )
         for (pattern in formats) {
@@ -325,46 +450,4 @@ class CreateOrderViewModel(
     private fun String.toMinutes(): Int = try {
         val p = split(":"); p[0].toInt() * 60 + p[1].toInt()
     } catch (e: Exception) { 0 }
-
-    //Enable CV Button
-    fun enableCvMode() {
-        val options = _uiState.value.printOptions ?: return
-
-        val bondPaper    = options.paperTypes.find { it.name.lowercase() == "bond" }
-        val bondColor    = options.colorModes.find { it.name.lowercase() == "bond" }  // sent to backend, never shown
-        val normalFinish = options.finishTypes.find { it.name.lowercase() == "normal" }
-            ?: options.finishTypes.firstOrNull { it.name.lowercase() != "bond" }
-
-        if (bondPaper == null) {
-            _uiState.update { it.copy(error = "CV printing not available at this shop") }
-            return
-        }
-
-        _uiState.update {
-            it.copy(
-                isCvMode           = true,
-                selectedPaperType  = bondPaper,
-                selectedColorMode  = bondColor ?: it.selectedColorMode, // Bond goes to backend silently
-                selectedFinishType = normalFinish ?: it.selectedFinishType,
-            )
-        }
-    }
-
-    fun disableCvMode() {
-        _uiState.update {
-            it.copy(
-                isCvMode           = false,
-                selectedPaperType  = null,
-                selectedFinishType = null,
-                // Restore to first non-Bond color so UI shows a selection again
-                selectedColorMode  = it.printOptions
-                    ?.colorModes
-                    ?.firstOrNull { cm -> cm.name.lowercase() != "bond" },
-            )
-        }
-    }
-
-    fun toggleCvMode() {
-        if (_uiState.value.isCvMode) disableCvMode() else enableCvMode()
-    }
 }

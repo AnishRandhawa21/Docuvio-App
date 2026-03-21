@@ -49,6 +49,7 @@ import com.razorpay.Checkout
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import com.docuvio.app.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -89,22 +90,57 @@ fun CreateOrderScreen(
         null
     }
 
+    // ── FIXED FILE PICKER ─────────────────────────────────────────────────────
+    // Previously: mimeType was resolved but then thrown away before calling
+    //             setFileAndReadPages — so the ViewModel and repository always
+    //             uploaded with application/octet-stream, corrupting JPEGs on
+    //             the server side.
+    // Now:        canonical mimeType flows all the way into the ViewModel and
+    //             from there into the multipart upload request.
     val filePickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@rememberLauncherForActivityResult
-            val mimeType = context.contentResolver.getType(uri) ?: ""
-            val extension = when {
-                mimeType.contains("pdf") -> "pdf"
-                mimeType.contains("png") -> "png"
-                mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpg"
-                else -> "file"
+
+            // Step 1: resolve true MIME from ContentResolver
+            val rawMime = context.contentResolver.getType(uri) ?: "application/octet-stream"
+
+            // Step 2: normalise — "image/jpg" is not a real MIME type
+            val mimeType = when (rawMime.lowercase().trim()) {
+                "image/jpg", "image/pjpeg" -> "image/jpeg"
+                else -> rawMime
             }
-            val fileName = "file_${System.currentTimeMillis()}.$extension"
-            val input = context.contentResolver.openInputStream(uri)
-            val file = File(context.cacheDir, fileName)
-            input?.use { inp -> FileOutputStream(file).use { out -> inp.copyTo(out) } }
-            viewModel.setFileAndReadPages(context, file)
+
+            // Step 3: derive extension from the canonical MIME (not from filename)
+            val extension = when {
+                mimeType.contains("pdf")  -> "pdf"
+                mimeType.contains("png")  -> "png"
+                mimeType.contains("jpeg") -> "jpg"
+                else -> "bin"
+            }
+
+            // Step 4: copy bytes — both streams in try-with-resources, flush before use
+            val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.$extension")
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(file).use { output ->
+                        input.copyTo(output)
+                        output.flush()  // force OS buffer → disk before ViewModel reads file
+                    }
+                } ?: run {
+                    viewModel.setError("Could not read the selected file. Please try another.")
+                    return@rememberLauncherForActivityResult
+                }
+            } catch (e: IOException) {
+                file.delete()  // don't leave a partial file in cache
+                Log.e("FilePicker", "Copy failed for $uri", e)
+                viewModel.setError("Failed to copy file. Please try again.")
+                return@rememberLauncherForActivityResult
+            }
+
+            // Step 5: pass file AND its canonical mimeType to ViewModel
+            viewModel.setFileAndReadPages(context, file, mimeType)
         }
+    // ─────────────────────────────────────────────────────────────────────────
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onOrderSuccess()
@@ -499,42 +535,20 @@ fun SelectOptionsContent(
 ) {
     var showInstructions by remember { mutableStateOf(false) }
 
-    // ── Derived filtered lists ────────────────────────────────────────────────
-    //
-    // Color Mode  → Bond is ALWAYS hidden. User picks freely in both modes.
-    //               Bond color is never shown or sent — CV mode doesn't touch color.
-    //
-    // Paper Type  → All options shown in normal mode.
-    //               CV mode: only Bond shown (locked, user cannot change it).
-    //
-    // Finish Type → Bond is ALWAYS hidden from the list.
-    //               CV mode auto-selects "Normal" finish (not Bond).
-    //               User can still change finish freely even in CV mode.
-    //
     val filteredColorModes = remember(uiState.printOptions) {
-        // Bond is never a user-facing color option — hide it in all modes
         (uiState.printOptions?.colorModes ?: emptyList())
             .filter { it.name.lowercase() != "bond" }
     }
 
     val filteredPaperTypes = remember(uiState.printOptions, uiState.isCvMode) {
         val all = uiState.printOptions?.paperTypes ?: emptyList()
-        if (uiState.isCvMode) {
-            // CV mode: show only Bond (locked — cannot be changed)
-            all.filter { it.name.lowercase() == "bond" }
-        } else {
-            // Normal mode: all paper types available
-            all
-        }
+        if (uiState.isCvMode) all.filter { it.name.lowercase() == "bond" } else all
     }
 
     val filteredFinishTypes = remember(uiState.printOptions) {
-        // Bond finish is never shown to the user — it is a CV-internal concept.
-        // In CV mode the ViewModel auto-selects "Normal" finish instead.
         (uiState.printOptions?.finishTypes ?: emptyList())
             .filter { it.name.lowercase() != "bond" }
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
     Surface(
         modifier = Modifier
@@ -548,7 +562,6 @@ fun SelectOptionsContent(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
-            // ── Header ────────────────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -564,7 +577,6 @@ fun SelectOptionsContent(
                 InfoIconButton { showInstructions = true }
             }
 
-            // ── File picker ───────────────────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -659,7 +671,6 @@ fun SelectOptionsContent(
                 .padding(16.dp)) {
                 Column {
 
-                    // ── Copies ────────────────────────────────────────────────
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -710,7 +721,6 @@ fun SelectOptionsContent(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ── CV Mode Toggle ────────────────────────────────────────
                     CvModeToggle(
                         isEnabled = uiState.isCvMode,
                         onToggle = onCvModeToggle
@@ -718,16 +728,10 @@ fun SelectOptionsContent(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ── Color Mode ────────────────────────────────────────────
-                    // CV mode: Bond is sent to backend but never shown in the UI.
-                    //          All visible cards appear unselected + dimmed.
-                    //          Clicks are fully blocked — user cannot change color.
-                    // Normal mode: user picks freely from all non-Bond options.
                     Text(
                         "Color Mode",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        // Dim the section label too when locked
                         color = if (uiState.isCvMode) AlmostBlack.copy(alpha = 0.4f) else AlmostBlack
                     )
                     Spacer(Modifier.height(12.dp))
@@ -736,14 +740,11 @@ fun SelectOptionsContent(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         filteredColorModes.forEach { colorMode ->
-                            // In CV mode: nothing is "selected" visually — Bond is the real
                             val isSelected = !uiState.isCvMode && uiState.selectedColorMode == colorMode
-
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(140.dp)
-                                    // Dim the whole card in CV mode
                                     .alpha(if (uiState.isCvMode) 0.4f else 1f)
                                     .background(
                                         if (isSelected) SoftBlue.copy(alpha = 0.1f) else Color.Transparent,
@@ -754,10 +755,7 @@ fun SelectOptionsContent(
                                         if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
                                         RoundedCornerShape(12.dp)
                                     )
-                                    // Block clicks entirely in CV mode
-                                    .clickable(enabled = !uiState.isCvMode) {
-                                        onColorModeSelect(colorMode)
-                                    }
+                                    .clickable(enabled = !uiState.isCvMode) { onColorModeSelect(colorMode) }
                                     .padding(horizontal = 14.dp, vertical = 12.dp)
                             ) {
                                 Column(
@@ -768,7 +766,6 @@ fun SelectOptionsContent(
                                         modifier = Modifier.fillMaxWidth(),
                                         contentAlignment = Alignment.TopEnd
                                     ) {
-                                        // Never show the check tick in CV mode
                                         if (isSelected) Icon(
                                             Icons.Default.Check, "Selected",
                                             tint = Blue,
@@ -818,9 +815,6 @@ fun SelectOptionsContent(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ── Paper Type ────────────────────────────────────────────
-                    // Normal mode: all paper types available.
-                    // CV mode: locked to Bond (auto-selected by ViewModel).
                     DropdownSection(
                         label = "Paper Type",
                         placeholder = "Select paper size",
@@ -833,9 +827,6 @@ fun SelectOptionsContent(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ── Finish Type ───────────────────────────────────────────
-                    // Bond is always hidden from the list (internal concept only).
-                    // CV mode auto-selects "Normal" finish via ViewModel + locks it.
                     DropdownSection(
                         label = "Finish Type",
                         placeholder = "Select finish type",
@@ -848,7 +839,6 @@ fun SelectOptionsContent(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ── Orientation ───────────────────────────────────────────
                     Text(
                         "Orientation",
                         style = MaterialTheme.typography.titleMedium,
@@ -891,7 +881,6 @@ fun SelectOptionsContent(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ── Pickup ────────────────────────────────────────────────
                     uiState.shop?.let { shop ->
                         PickupDateTimeSection(
                             value = uiState.pickupAt,
@@ -1106,7 +1095,6 @@ private fun <T> DropdownSection(
     var expanded by remember { mutableStateOf(false) }
     val isSelected = selected.isNotEmpty()
 
-    // Auto-collapse if disabled mid-open (e.g. user opens then toggles CV mode)
     LaunchedEffect(enabled) { if (!enabled) expanded = false }
 
     Column {
@@ -1154,7 +1142,6 @@ private fun <T> DropdownSection(
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Icon(
-                        // Hide the arrow when locked — makes it clear the field isn't interactive
                         if (enabled) Icons.Default.ArrowDropDown else Icons.Default.Check,
                         contentDescription = null,
                         tint = if (enabled) {

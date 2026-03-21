@@ -84,18 +84,27 @@ fun WalkInOrderScreen(
 
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        val mimeType  = context.contentResolver.getType(uri) ?: ""
+        val rawMime   = context.contentResolver.getType(uri) ?: "application/octet-stream"
+        val mimeType  = when (rawMime.lowercase().trim()) {
+            "image/jpg", "image/pjpeg" -> "image/jpeg"
+            else -> rawMime
+        }
         val extension = when {
             mimeType.contains("pdf")  -> "pdf"
             mimeType.contains("png")  -> "png"
-            mimeType.contains("jpeg") || mimeType.contains("jpg") -> "jpg"
-            else -> "file"
+            mimeType.contains("jpeg") -> "jpg"
+            else -> "bin"
         }
-        val file = File(context.cacheDir, "file_${System.currentTimeMillis()}.$extension")
+        val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.$extension")
         context.contentResolver.openInputStream(uri)?.use { inp ->
-            FileOutputStream(file).use { inp.copyTo(it) }
-        }
-        viewModel.setFile(file, if (extension == "pdf") PdfUtils.getPdfPageCount(context, file) else 1)
+            FileOutputStream(file).use { out ->
+                inp.copyTo(out)
+                out.flush()     // ← ensure bytes hit disk before ViewModel reads the file
+            }
+        } ?: return@rememberLauncherForActivityResult
+
+        val pageCount = if (extension == "pdf") PdfUtils.getPdfPageCount(context, file) else 1
+        viewModel.setFile(file, pageCount, mimeType)  // ← pass mimeType
     }
 
     LaunchedEffect(uiState.isSuccess) {

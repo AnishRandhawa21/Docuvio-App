@@ -2,6 +2,7 @@ package com.docuvio.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.docuvio.app.data.model.RazorpayHolder
 import com.docuvio.app.data.repository.OrderRepository
 import com.docuvio.app.data.repository.Result
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,7 @@ enum class WalkInOrderStage {
     UploadingFile,
     AttachingDocument,
     CreatingPayment,
-    WaitingForPayment,   // payment sheet is open — block UI but don't show spinner
+    WaitingForPayment,
     VerifyingPayment,
 }
 
@@ -25,12 +26,12 @@ data class WalkInOrderUiState(
     val pageCount: Int = 0,
     val uploadProgress: Int = 0,
     val selectedFile: File? = null,
+    val selectedFileMimeType: String = "application/octet-stream",  // ← MIME carried through upload
     val amount: String = "",
     val notes: String = "",
     val error: String? = null,
     val isSuccess: Boolean = false
 ) {
-    // convenience helpers so the UI doesn't need to import the enum
     val isLoading: Boolean get() = stage != WalkInOrderStage.Idle && stage != WalkInOrderStage.WaitingForPayment
     val uploadingFile: Boolean get() = stage == WalkInOrderStage.UploadingFile
     val isWaitingForPayment: Boolean get() = stage == WalkInOrderStage.WaitingForPayment
@@ -54,9 +55,20 @@ class WalkInOrderViewModel(
         _uiState.value = _uiState.value.copy(notes = value)
     }
 
-    fun setFile(file: File, pageCount: Int) {
+    // Called from UI after file is copied to cache — receives resolved, normalised MIME
+    fun setFile(file: File, pageCount: Int, mimeType: String) {
+        val canonical = normaliseMime(mimeType)
+        val correctExt = mimeToExtension(canonical)
+
+        // Ensure filename extension matches the real type
+        val renamedFile = if (file.extension.lowercase() != correctExt) {
+            File(file.parent, "upload_${System.currentTimeMillis()}.$correctExt")
+                .also { dest -> file.renameTo(dest) }
+        } else file
+
         _uiState.value = _uiState.value.copy(
-            selectedFile = file,
+            selectedFile = renamedFile,
+            selectedFileMimeType = canonical,
             pageCount = pageCount
         )
     }
@@ -71,11 +83,10 @@ class WalkInOrderViewModel(
 
     fun submitOrder(onPaymentRequired: (String, Int) -> Unit) {
         viewModelScope.launch {
-
             val state = _uiState.value
 
             val file = state.selectedFile ?: run {
-                _uiState.value = state.copy(error = "Please upload a PDF")
+                _uiState.value = state.copy(error = "Please upload a document")
                 return@launch
             }
 
@@ -104,7 +115,7 @@ class WalkInOrderViewModel(
             val orderId = (orderResult as Result.Success).data.id
             currentOrderId = orderId
 
-            /* 2️⃣ UPLOAD FILE */
+            /* 2️⃣ UPLOAD FILE — pass resolved MIME type so backend gets correct Content-Type */
             _uiState.value = _uiState.value.copy(
                 stage = WalkInOrderStage.UploadingFile,
                 uploadProgress = 0
@@ -112,6 +123,7 @@ class WalkInOrderViewModel(
 
             val uploadResult = orderRepository.uploadFile(
                 file = file,
+                mimeType = state.selectedFileMimeType,  // ← THE FIX
                 onProgress = { percent ->
                     _uiState.value = _uiState.value.copy(uploadProgress = percent)
                 }
@@ -163,8 +175,6 @@ class WalkInOrderViewModel(
                 val amount = paymentResult.data.amount
 
                 if (!razorpayOrderId.isNullOrBlank() && amount != null) {
-                    /* Move to WaitingForPayment BEFORE opening the sheet,
-                       so the spinner clears and Razorpay can render cleanly */
                     _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.WaitingForPayment)
                     onPaymentRequired(razorpayOrderId, amount)
                 } else {
@@ -183,7 +193,6 @@ class WalkInOrderViewModel(
         razorpaySignature: String
     ) {
         val orderId = currentOrderId ?: return
-
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(stage = WalkInOrderStage.VerifyingPayment)
 
@@ -213,5 +222,19 @@ class WalkInOrderViewModel(
             stage = WalkInOrderStage.Idle,
             error = "Payment cancelled"
         )
+    }
+
+    /* ---------------- PRIVATE HELPERS ---------------- */
+
+    private fun normaliseMime(mime: String): String = when (mime.lowercase().trim()) {
+        "image/jpg", "image/pjpeg" -> "image/jpeg"
+        else -> mime
+    }
+
+    private fun mimeToExtension(mime: String): String = when (mime) {
+        "image/jpeg"      -> "jpg"
+        "image/png"       -> "png"
+        "application/pdf" -> "pdf"
+        else              -> "bin"
     }
 }
