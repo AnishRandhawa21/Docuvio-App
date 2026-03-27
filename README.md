@@ -19,12 +19,7 @@
 
 ## 📱 App Screens
 
-![Login](https://github.com/user-attachments/assets/e9afd561-7c7e-473a-a315-f16e42376fa5)
-![home](https://github.com/user-attachments/assets/0c1e323f-23e0-49e3-86c3-12e9398e9e3d)
-![Order](https://github.com/user-attachments/assets/b3f8f404-8abd-4533-a79e-abf5e68d1206)
-![order 2](https://github.com/user-attachments/assets/434b9926-92f6-4cdd-a062-3811cf39f3c8)
-![OrderScreen](https://github.com/user-attachments/assets/0d50f098-1767-4db8-8a77-bb23843e2add)
-![orderscreen2](https://github.com/user-attachments/assets/35d048f2-6e42-4649-85b0-176fc7b5b2b3)
+![Login](https://github.com/user-attachments/assets/e9afd561-7c7e-473a-a315-f16e42376fa5)![home](https://github.com/user-attachments/assets/0c1e323f-23e0-49e3-86c3-12e9398e9e3d)![Order](https://github.com/user-attachments/assets/b3f8f404-8abd-4533-a79e-abf5e68d1206)![order 2](https://github.com/user-attachments/assets/434b9926-92f6-4cdd-a062-3811cf39f3c8)![OrderScreen](https://github.com/user-attachments/assets/0d50f098-1767-4db8-8a77-bb23843e2add)![orderscreen2](https://github.com/user-attachments/assets/35d048f2-6e42-4649-85b0-176fc7b5b2b3)
 
 
 
