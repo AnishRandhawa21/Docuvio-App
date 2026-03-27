@@ -57,6 +57,8 @@ private val TrackBgColor   = Color(0xFF2C2C2E)
 
 @Composable
 fun WalkInFloatingPayBar(
+    total: Int,
+    pageCount: Int,
     isEnabled: Boolean,
     onSubmit: () -> Unit
 ) {
@@ -96,12 +98,45 @@ fun WalkInFloatingPayBar(
                 .background(CardColor)
                 .padding(10.dp)
         ) {
-            WalkInSwipeToPayButton(
-                enabled = isEnabled,
-                onSwiped = onSubmit,
-                onAttemptedWhenDisabled = ::triggerShake,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Column {
+                        Text(
+                            text = "$pageCount pages",
+                            color = Color(0xFFB0B0B0), // or MediumGray
+                            fontSize = 13.sp
+                        )
+
+                        Text(
+                            text = "Incl. convenience fee",
+                            color = Color(0xFFB0B0B0),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Text(
+                        text = "₹ $total",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                WalkInSwipeToPayButton(
+                    enabled = isEnabled,
+                    onSwiped = onSubmit,
+                    onAttemptedWhenDisabled = ::triggerShake,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

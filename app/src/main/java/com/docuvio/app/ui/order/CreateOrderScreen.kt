@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -194,18 +195,15 @@ fun CreateOrderScreen(
 
             if (processing) {
                 OrderProcessingView(
-                    step = uiState.currentStep,
+                    step           = uiState.currentStep,
                     uploadProgress = uiState.uploadProgress,
-                    error = uiState.error,
-                    onRetry = {
-                        viewModel.clearError()
-                        enteredFlow = false
-                    },
-                    onCancel = {
-                        viewModel.setPaymentCancelled()
-                        viewModel.clearError()
-                        enteredFlow = false
-                    }
+                    error          = uiState.error,
+                    documentPrice  = uiState.documentPrice,   // ✅ exists
+                    platformFee    = uiState.platformFee,     // ✅ exists
+                    handlingFee    = uiState.handlingFee,     // ✅ already existed
+                    total          = uiState.totalAmount,     // ✅ exists
+                    onRetry  = { viewModel.clearError(); enteredFlow = false },
+                    onCancel = { viewModel.setPaymentCancelled(); viewModel.clearError(); enteredFlow = false }
                 )
             } else {
                 SelectOptionsContent(
@@ -290,6 +288,11 @@ private fun OrderProcessingView(
     step: OrderStep,
     uploadProgress: Int,
     error: String?,
+    documentPrice: Int,
+    platformFee: Int,
+    handlingFee: Int = 0,
+    total: Int,
+    // ─────────────────────────────────
     onRetry: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -299,34 +302,11 @@ private fun OrderProcessingView(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(Modifier.height(72.dp))
-
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(if (isFailed) Color(0xFFFFEDED) else DarkBlue.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isFailed) {
-                Icon(
-                    Icons.Default.Close, null,
-                    tint = Color(0xFFD32F2F),
-                    modifier = Modifier.size(36.dp)
-                )
-            } else {
-                CircularProgressIndicator(
-                    color = DarkBlue,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(40.dp))
 
         AnimatedContent(
             targetState = if (isFailed) "Something went wrong"
@@ -396,8 +376,16 @@ private fun OrderProcessingView(
                 }
             }
         }
+        Spacer(Modifier.height(20.dp))
 
-        Spacer(Modifier.weight(1f))
+        BillBreakdown(
+            documentPrice = documentPrice,
+            platformFee = platformFee,
+            handlingFee = handlingFee,
+            total = total
+        )
+
+        Spacer(Modifier.height(24.dp))
 
         if (isFailed) {
             Button(
@@ -515,6 +503,106 @@ private fun OrderStepRow(
     }
 }
 
+@Composable
+fun BillBreakdown(
+    documentPrice: Int,
+    platformFee: Int,
+    handlingFee: Int = 0,
+    total: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(AlmostBlack.copy(alpha = 0.04f))
+            .border(1.dp, AlmostBlack.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        // Header
+        Text(
+            text = "Bill Summary",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MediumGray,
+            letterSpacing = 0.5.sp
+        )
+
+        Spacer(Modifier.height(2.dp))
+
+        // Documents price
+        BillRow(label = "Documents", amount = documentPrice)
+
+        // Platform fee
+        BillRow(label = "Platform Fee", amount = platformFee)
+
+        // Handling fee — only rendered when applicable
+        if (handlingFee > 0) {
+            BillRow(
+                label = "Handling Fee",
+                amount = handlingFee,
+                labelColor = CoralRed.copy(alpha = 0.85f),
+                amountColor = CoralRed
+            )
+        }
+
+        // Divider
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 2.dp),
+            thickness = 1.dp,
+            color = AlmostBlack.copy(alpha = 0.10f)
+        )
+
+        // Total
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Total",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = AlmostBlack
+            )
+            Text(
+                text = "₹$total",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = DarkBlue
+            )
+        }
+    }
+}
+
+@Composable
+private fun BillRow(
+    label: String,
+    amount: Int,
+    labelColor: Color = MediumGray,
+    amountColor: Color = AlmostBlack
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Normal,
+            color = labelColor
+        )
+        Text(
+            text = "₹$amount",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = amountColor
+        )
+    }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /*  SELECT OPTIONS                                                             */
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -608,6 +696,21 @@ fun SelectOptionsContent(
                                     .fillMaxSize()
                                     .clip(RoundedCornerShape(16.dp))
                             )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(10.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AlmostBlack.copy(alpha = 0.6f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${uiState.pageCount} pages",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
@@ -947,13 +1050,18 @@ fun SelectOptionsContent(
                 containerColor = Cream,
                 titleContentColor = AlmostBlack,
                 textContentColor = MediumGray,
-                icon = { Icon(Icons.Outlined.Info, null, tint = CoralRed) },
-                title = { Text("Printing Instructions", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Outlined.Lock, null, tint = DarkBlue) },
+                title = { Text("Secure Payment", fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InstructionItem("Enable CV Mode to automatically select Bond paper, finish, and color.")
-                        InstructionItem("Upload PDF or image files (PNG, JPG).")
-                        InstructionItem("Urgent printing adds an extra ₹10 to the total price.")
+
+                        InstructionItem("Payments are processed securely via Razorpay.")
+
+                        InstructionItem("Final amount includes convenience fee.")
+
+                        InstructionItem("You will receive instant confirmation after payment.")
+
+                        InstructionItem("If payment fails, amount will be refunded automatically.")
                     }
                 },
                 confirmButton = {
@@ -961,7 +1069,7 @@ fun SelectOptionsContent(
                         onClick = { showInstructions = false },
                         colors = ButtonDefaults.textButtonColors(contentColor = LimeGreen)
                     ) {
-                        Text("Got it")
+                        Text("Continue")
                     }
                 },
                 shape = RoundedCornerShape(16.dp)

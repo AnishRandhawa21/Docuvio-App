@@ -19,6 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.docuvio.app.ui.order.utils.PricingUtils
 
 /* ---------------- UI STATE ---------------- */
 
@@ -42,7 +43,10 @@ data class CreateOrderUiState(
     val uploadProgress: Int = 0,
     val error: String? = null,
     val isSuccess: Boolean = false,
-    val currentStep: OrderStep = OrderStep.LOADING_OPTIONS
+    val currentStep: OrderStep = OrderStep.LOADING_OPTIONS,
+    val documentPrice: Int = 0,
+    val platformFee: Int = 0,
+    val totalAmount: Int = 0,
 )
 
 enum class OrderStep {
@@ -112,11 +116,24 @@ class CreateOrderViewModel(
     /* ---------------- STATE SETTERS ---------------- */
 
     fun setFile(file: File) { _uiState.value = _uiState.value.copy(selectedFile = file) }
-    fun setPaperType(paperType: PaperType) { _uiState.value = _uiState.value.copy(selectedPaperType = paperType) }
-    fun setColorMode(colorMode: ColorMode) { _uiState.value = _uiState.value.copy(selectedColorMode = colorMode) }
-    fun setFinishType(finishType: FinishType) { _uiState.value = _uiState.value.copy(selectedFinishType = finishType) }
+    fun setPaperType(paperType: PaperType) {
+        _uiState.update { it.copy(selectedPaperType = paperType) }
+        recalculatePricing()
+    }
+
+    fun setColorMode(colorMode: ColorMode) {
+        _uiState.update { it.copy(selectedColorMode = colorMode) }
+        recalculatePricing()
+    }
+    fun setFinishType(finishType: FinishType) {
+        _uiState.update { it.copy(selectedFinishType = finishType) }
+        recalculatePricing()
+    }
     fun setPageCount(count: Int) { _uiState.value = _uiState.value.copy(pageCount = count) }
-    fun setCopies(copies: Int) { _uiState.value = _uiState.value.copy(copies = copies) }
+    fun setCopies(copies: Int) {
+        _uiState.update { it.copy(copies = copies) }
+        recalculatePricing()
+    }
     fun setOrientation(orientation: PrintOrientation) { _uiState.value = _uiState.value.copy(orientation = orientation) }
     fun setDescription(value: String) { _uiState.value = _uiState.value.copy(description = value) }
     fun clearError() { _uiState.update { it.copy(error = null) } }
@@ -131,6 +148,7 @@ class CreateOrderViewModel(
                 handlingFee = if (handled) 10 else 0
             )
         }
+        recalculatePricing()
     }
 
     /* ---------------- FILE READ ---------------- */
@@ -156,7 +174,8 @@ class CreateOrderViewModel(
                     "application/pdf" -> PdfUtils.getPdfPageCount(context, renamedFile)
                     else -> 1   // images are always 1 page
                 }
-                _uiState.value = _uiState.value.copy(pageCount = pageCount)
+                _uiState.update { it.copy(pageCount = pageCount) }
+                recalculatePricing()
             } catch (e: Exception) {
                 Log.e("FILE_READ", "Error reading file", e)
                 _uiState.value = _uiState.value.copy(
@@ -369,6 +388,7 @@ class CreateOrderViewModel(
                 selectedFinishType = normalFinish ?: it.selectedFinishType,
             )
         }
+        recalculatePricing()
     }
 
     fun disableCvMode() {
@@ -382,6 +402,7 @@ class CreateOrderViewModel(
                     ?.firstOrNull { cm -> cm.name.lowercase() != "bond" },
             )
         }
+        recalculatePricing()
     }
 
     fun toggleCvMode() {
@@ -450,4 +471,19 @@ class CreateOrderViewModel(
     private fun String.toMinutes(): Int = try {
         val p = split(":"); p[0].toInt() * 60 + p[1].toInt()
     } catch (e: Exception) { 0 }
+
+    private fun recalculatePricing() {
+        val state = _uiState.value
+        val docPrice  = PricingUtils.calculateDocumentPrice(state)
+        val platform  = PricingUtils.calculatePlatformFee(docPrice)
+        val handling  = PricingUtils.calculateHandlingFee(state)
+        _uiState.update {
+            it.copy(
+                documentPrice = docPrice,
+                platformFee   = platform,
+                handlingFee   = handling,
+                totalAmount   = docPrice + platform + handling
+            )
+        }
+    }
 }

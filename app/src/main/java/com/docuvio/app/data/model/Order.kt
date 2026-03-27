@@ -1,5 +1,6 @@
 package com.docuvio.app.data.model
 
+import android.provider.DocumentsContract
 import com.google.gson.annotations.SerializedName
 
 /* ================= CREATE ORDER ================= */
@@ -138,5 +139,15 @@ enum class PrintOrientation(
 
 fun String.lastSix(): String {
     return if (length <= 6) this else takeLast(6)
+}
+
+fun Order.getTotalPages(): Int {
+    return documents?.sumOf { it.pageCount ?: 0 } ?: 0
+}
+
+fun Order.getTotalPrints(): Int {
+    return documents?.sumOf {
+        (it.pageCount ?: 0) * (it.copies ?: 1)
+    } ?: 0
 }
 

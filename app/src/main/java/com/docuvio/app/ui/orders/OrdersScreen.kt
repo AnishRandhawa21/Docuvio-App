@@ -298,41 +298,6 @@ fun PickupOtpBox(otp: String) {
 /* -------------------------------------------------------------------------- */
 
 @Composable
-fun StrokedText(
-    text: String,
-    textColor: Color,
-    strokeColor: Color,
-    strokeWidth: Float,
-    fontSize: TextUnit = 16.sp,
-    fontWeight: FontWeight = FontWeight.Bold
-) {
-    val strokeStyle = remember(strokeColor, strokeWidth, fontSize, fontWeight) {
-        TextStyle(
-            fontSize = fontSize,
-            fontWeight = fontWeight,
-            color = strokeColor,
-            drawStyle = Stroke(
-                width = strokeWidth,
-                join = StrokeJoin.Round
-            )
-        )
-    }
-
-    val fillStyle = remember(textColor, fontSize, fontWeight) {
-        TextStyle(
-            fontSize = fontSize,
-            fontWeight = fontWeight,
-            color = textColor
-        )
-    }
-
-    Box {
-        Text(text = text, style = strokeStyle)
-        Text(text = text, style = fillStyle)
-    }
-}
-
-@Composable
 fun ExpandableOrderCard(
     order: Order,
     expanded: Boolean,
@@ -477,7 +442,7 @@ fun ExpandableOrderCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Amount",
+                                text = "Total Amount",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MediumGray
                             )
@@ -499,7 +464,7 @@ fun ExpandableOrderCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Payment",
+                                text = "Payment Status",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MediumGray
                             )
