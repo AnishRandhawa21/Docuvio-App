@@ -39,10 +39,6 @@ class AuthViewModel(
         }
     }
 
-    fun isSessionValid(): Boolean {
-        return tokenManager.isSessionValid()
-    }
-
     /* ---------------- LOAD ORGANISATIONS ---------------- */
 
     fun loadOrganisations() {
@@ -206,16 +202,6 @@ class AuthViewModel(
     }
 
     /* ---------------- LOGOUT ---------------- */
-
-    suspend fun logout() {
-        try {
-            FirebaseMessaging.getInstance().deleteToken()
-        } catch (e: Exception) {
-            Log.e("FCM", "Failed to delete FCM token", e)
-        }
-
-        tokenManager.clearAll()
-    }
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)

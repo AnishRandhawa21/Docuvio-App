@@ -46,7 +46,7 @@
     import java.io.FileOutputStream
     import androidx.compose.ui.text.input.KeyboardType
     import com.docuvio.app.ui.order.utils.WalkInFloatingPayBar
-    import com.docuvio.app.utils.PdfUtils
+    import androidx.compose.material.icons.filled.Warning
     import kotlinx.coroutines.launch
 
     // ── Stage metadata ────────────────────────────────────────────────────────────
@@ -83,28 +83,55 @@
         }
 
         val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri ?: return@rememberLauncherForActivityResult
-            val rawMime   = context.contentResolver.getType(uri) ?: "application/octet-stream"
-            val mimeType  = when (rawMime.lowercase().trim()) {
-                "image/jpg", "image/pjpeg" -> "image/jpeg"
+            uri ?: run {
+                Log.d("FilePicker", "No URI returned — user cancelled")
+                return@rememberLauncherForActivityResult
+            }
+
+            val rawMime = context.contentResolver.getType(uri) ?: "application/octet-stream"
+            Log.d("FilePicker", "URI: $uri")
+            Log.d("FilePicker", "Raw MIME from ContentResolver: $rawMime")
+
+            val mimeType = when (rawMime.lowercase().trim()) {
+                "image/jpg", "image/jpeg" -> "image/jpeg"
                 else -> rawMime
             }
-            val extension = when {
-                mimeType.contains("pdf")  -> "pdf"
-                mimeType.contains("png")  -> "png"
-                mimeType.contains("jpeg") -> "jpg"
-                else -> "bin"
-            }
-            val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.$extension")
-            context.contentResolver.openInputStream(uri)?.use { inp ->
-                FileOutputStream(file).use { out ->
-                    inp.copyTo(out)
-                    out.flush()     // ← ensure bytes hit disk before ViewModel reads the file
-                }
-            } ?: return@rememberLauncherForActivityResult
+            Log.d("FilePicker", "Normalised MIME: $mimeType")
 
-            val pageCount = if (extension == "pdf") PdfUtils.getPdfPageCount(context, file) else 1
-            viewModel.setFile(file, pageCount, mimeType)  // ← pass mimeType
+            val extension = when {
+                mimeType.contains("pdf")            -> "pdf"
+                mimeType.contains("png")            -> "png"
+                mimeType.contains("jpeg")           -> "jpg"
+                mimeType.contains("word") ||
+                        mimeType.contains("officedocument") -> "docx"
+                else                                -> "bin"
+            }
+            Log.d("FilePicker", "Resolved extension: $extension")
+
+            val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.$extension")
+            Log.d("FilePicker", "Cache file path: ${file.absolutePath}")
+
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inp ->
+                    FileOutputStream(file).use { out ->
+                        val bytesCopied = inp.copyTo(out)
+                        out.flush()
+                        Log.d("FilePicker", "Bytes copied to cache: $bytesCopied")
+                    }
+                } ?: run {
+                    Log.e("FilePicker", "openInputStream returned null for URI: $uri")
+                    viewModel.clearError()
+                    return@rememberLauncherForActivityResult
+                }
+            } catch (e: Exception) {
+                Log.e("FilePicker", "Failed to copy file to cache", e)
+                file.delete()
+                return@rememberLauncherForActivityResult
+            }
+
+            Log.d("FilePicker", "File exists after copy: ${file.exists()}, size: ${file.length()} bytes")
+            Log.d("FilePicker", "Calling viewModel.setFile with mimeType: $mimeType")
+            viewModel.setFile(file, mimeType)
         }
 
         LaunchedEffect(uiState.isSuccess) {
@@ -148,7 +175,9 @@
                         uiState    = uiState,
                         viewModel  = viewModel,
                         activity   = activity,
-                        onPickFile = { filePicker.launch(arrayOf("application/pdf", "image/png", "image/jpeg", "image/jpg")) }
+                        onPickFile = { filePicker.launch(arrayOf(
+                            "*/*"
+                        )) }
                     )
                 }
             }
@@ -203,49 +232,155 @@
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(200.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(if (uiState.selectedFile != null) Color.Transparent else AlmostBlack.copy(alpha = 0.04f))
+                        .background(
+                            when {
+                                uiState.isConverting -> DarkBlue.copy(alpha = 0.04f)
+                                uiState.selectedFile != null -> Color.Transparent
+                                else -> AlmostBlack.copy(alpha = 0.04f)
+                            }
+                        )
                         .border(
                             width = if (uiState.selectedFile != null) 2.dp else 1.5.dp,
-                            color = if (uiState.selectedFile != null) DarkBlue.copy(alpha = 0.7f) else AlmostBlack.copy(alpha = 0.3f),
+                            color = when {
+                                uiState.isConverting -> DarkBlue.copy(alpha = 0.4f)
+                                uiState.selectedFile != null -> DarkBlue.copy(alpha = 0.7f)
+                                uiState.conversionError != null -> CoralRed.copy(alpha = 0.7f)
+                                else -> AlmostBlack.copy(alpha = 0.3f)
+                            },
                             shape = RoundedCornerShape(16.dp)
                         )
-                        .clickable(onClick = onPickFile),
+                        // Disable tap while converting
+                        .clickable(enabled = !uiState.isConverting) { onPickFile() },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (uiState.selectedFile != null) {
-                        FilePreview(file = uiState.selectedFile!!, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)))
-                        Box(
-                            modifier = Modifier.align(Alignment.TopStart).padding(10.dp)
-                                .clip(RoundedCornerShape(8.dp)).background(AlmostBlack.copy(alpha = 0.6f))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                if (uiState.pageCount > 0) "${uiState.pageCount} pages" else "Pages unknown",
-                                color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Box(
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp)
-                                .clip(RoundedCornerShape(8.dp)).background(AlmostBlack.copy(alpha = 0.6f))
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text("Tap to change", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                        }
-                    } else {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp))
-                                    .background(DarkBlue.copy(alpha = 0.1f)),
-                                contentAlignment = Alignment.Center
+                    when {
+                        // ── Converting spinner ──────────────────────────────────────────
+                        uiState.isConverting -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                Icon(Icons.Default.Add, null, tint = DarkBlue, modifier = Modifier.size(30.dp))
+                                CircularProgressIndicator(
+                                    color = DarkBlue,
+                                    strokeWidth = 3.dp,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    "Converting DOCX → PDF…",
+                                    color = DarkBlue,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "This may take a few seconds",
+                                    color = MediumGray,
+                                    fontSize = 12.sp
+                                )
                             }
-                            Spacer(Modifier.height(10.dp))
-                            Text("Upload document (PDF, PNG, JPG)", color = AlmostBlack, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text("Max 500MB", color = MediumGray, fontSize = 12.sp)
+                        }
+
+                        // ── File selected (PDF/image preview) ───────────────────────────
+                        uiState.selectedFile != null -> {
+                            FilePreview(
+                                file = uiState.selectedFile,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(16.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(10.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AlmostBlack.copy(alpha = 0.6f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "${uiState.pageCount} pages",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(AlmostBlack.copy(alpha = 0.6f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "Tap to change",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        // ── Conversion failed ────────────────────────────────────────────
+                        uiState.conversionError != null -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = CoralRed,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Conversion failed",
+                                    color = CoralRed,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Tap to try another file",
+                                    color = MediumGray,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        // ── Empty state ──────────────────────────────────────────────────
+                        else -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(DarkBlue.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add, null,
+                                        tint = DarkBlue,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Text(
+                                    "Tap to upload document",
+                                    color = AlmostBlack,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text("PDF, PNG, JPG, DOCX · Max 500MB", color = MediumGray, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -299,10 +434,8 @@
                         startRazorpayPayment(
                             activity,
                             razorpayOrderId,
-                            amount,
-                            { pid, sig -> viewModel.verifyPayment(razorpayOrderId, pid, sig) },
-                            { Log.e("RAZORPAY", it) }
-                        )
+                            amount
+                        ) { Log.e("RAZORPAY", it) }
                     }
                 }
             )
@@ -360,7 +493,7 @@
 
             AnimatedContent(
                 targetState = when {
-                    isFailed -> error ?: "Please try again"
+                    isFailed -> error
                     stage == WalkInOrderStage.UploadingFile -> "Uploading… $uploadProgress%"
                     else -> STEPS.getOrNull(currentIndex)?.sub ?: ""
                 },

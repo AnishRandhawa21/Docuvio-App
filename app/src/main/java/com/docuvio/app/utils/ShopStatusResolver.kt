@@ -60,12 +60,9 @@ object ShopStatusResolver {
             }
         }
 
-        val walkInEnabled = isOpen
-        val onlineEnabled = isAcceptingOrder
-
         return Capabilities(
-            walkInEnabled = walkInEnabled,
-            onlineEnabled = onlineEnabled,
+            walkInEnabled = isOpen,
+            onlineEnabled = isAcceptingOrder,
             bannerText = bannerText,
             bannerBg = bannerBg,
             bannerTextColor = bannerTextColor

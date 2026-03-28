@@ -1,6 +1,5 @@
 package com.docuvio.app.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.docuvio.app.data.model.*
@@ -12,7 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
-import android.content.Context
+import com.docuvio.app.BuildConfig
+import com.docuvio.app.ui.order.utils.DocxConverter
 import com.docuvio.app.utils.PdfUtils
 import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
@@ -20,11 +20,17 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import com.docuvio.app.ui.order.utils.PricingUtils
+import kotlinx.coroutines.Dispatchers
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 
 /* ---------------- UI STATE ---------------- */
 
 data class CreateOrderUiState(
     val isLoading: Boolean = false,
+    val isConverting: Boolean = false,        // ← ADD: shows spinner on file box
+    val conversionError: String? = null,
     val printOptions: PrintOptions? = null,
     val isCvMode: Boolean = false,
     val shop: Shop? = null,
@@ -77,10 +83,6 @@ class CreateOrderViewModel(
         loadPrintOptions()
     }
 
-    fun setPickupDate(dateMillis: Long) {
-        _uiState.update { it.copy(pickupAt = null) }
-    }
-
     /* ---------------- LOAD OPTIONS ---------------- */
 
     private fun loadPrintOptions() {
@@ -92,7 +94,7 @@ class CreateOrderViewModel(
                         isLoading = false,
                         printOptions = result.data,
                         selectedPaperType = null,
-                        selectedColorMode = result.data.colorModes?.firstOrNull(),
+                        selectedColorMode = result.data.colorModes.firstOrNull(),
                         selectedFinishType = null,
                         currentStep = OrderStep.SELECT_OPTIONS
                     )
@@ -115,7 +117,6 @@ class CreateOrderViewModel(
 
     /* ---------------- STATE SETTERS ---------------- */
 
-    fun setFile(file: File) { _uiState.value = _uiState.value.copy(selectedFile = file) }
     fun setPaperType(paperType: PaperType) {
         _uiState.update { it.copy(selectedPaperType = paperType) }
         recalculatePricing()
@@ -129,7 +130,7 @@ class CreateOrderViewModel(
         _uiState.update { it.copy(selectedFinishType = finishType) }
         recalculatePricing()
     }
-    fun setPageCount(count: Int) { _uiState.value = _uiState.value.copy(pageCount = count) }
+
     fun setCopies(copies: Int) {
         _uiState.update { it.copy(copies = copies) }
         recalculatePricing()
@@ -153,35 +154,70 @@ class CreateOrderViewModel(
 
     /* ---------------- FILE READ ---------------- */
 
-    fun setFileAndReadPages(context: Context, file: File, mimeType: String) {
+    fun setFileAndReadPages(file: File, mimeType: String) {
         val canonical = normaliseMime(mimeType)
         val correctExt = mimeToExtension(canonical)
 
-        // Ensure the cached file has the right extension so OkHttp/server see a proper filename
         val renamedFile = if (file.extension.lowercase() != correctExt) {
             File(file.parent, "upload_${System.currentTimeMillis()}.$correctExt")
                 .also { dest -> file.renameTo(dest) }
         } else file
 
-        _uiState.value = _uiState.value.copy(
-            selectedFile = renamedFile,
-            selectedFileMimeType = canonical
-        )
+        val isDocx = renamedFile.extension.lowercase() == "docx" ||
+                canonical.contains("word") ||
+                canonical.contains("officedocument")
 
-        viewModelScope.launch {
-            try {
-                val pageCount = when (canonical) {
-                    "application/pdf" -> PdfUtils.getPdfPageCount(context, renamedFile)
-                    else -> 1   // images are always 1 page
-                }
-                _uiState.update { it.copy(pageCount = pageCount) }
-                recalculatePricing()
-            } catch (e: Exception) {
-                Log.e("FILE_READ", "Error reading file", e)
-                _uiState.value = _uiState.value.copy(
-                    error = "Unsupported file or failed to read",
+        if (isDocx) {
+            // Show spinner on file box immediately, clear any old file
+            _uiState.update {
+                it.copy(
+                    isConverting = true,
+                    conversionError = null,
+                    selectedFile = null,       // clear old preview while converting
                     pageCount = 1
                 )
+            }
+        } else {
+            // Non-DOCX: just store the file directly, no conversion needed
+            _uiState.update {
+                it.copy(
+                    selectedFile = renamedFile,
+                    selectedFileMimeType = canonical
+                )
+            }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (finalFile, finalMime) = if (isDocx) {
+                    val converted = DocxConverter.convertToPdf(renamedFile)
+                    Pair(converted, "application/pdf")
+                } else {
+                    Pair(renamedFile, canonical)
+                }
+
+                val pageCount = if (finalMime == "application/pdf")
+                    PdfUtils.getPdfPageCount(finalFile) else 1
+
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        conversionError = null,
+                        selectedFile = finalFile,
+                        selectedFileMimeType = finalMime,
+                        pageCount = pageCount
+                    )
+                }
+                recalculatePricing()
+
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        selectedFile = null,
+                        conversionError = "Could not convert file: ${e.message ?: e.javaClass.simpleName}"
+                    )
+                }
             }
         }
     }
@@ -266,7 +302,7 @@ class CreateOrderViewModel(
             }
 
             val fileKey = uploadResult.data.fileKey
-            if (fileKey.isNullOrBlank()) {
+            if (fileKey.isBlank()) {
                 _uiState.value = state.copy(
                     isLoading = false,
                     error = "File upload failed. Please try again.",
@@ -412,7 +448,7 @@ class CreateOrderViewModel(
     /* ---------------- PRIVATE HELPERS ---------------- */
 
     private fun normaliseMime(mime: String): String = when (mime.lowercase().trim()) {
-        "image/jpg", "image/pjpeg" -> "image/jpeg"
+        "image/jpg", "image/JPEG" -> "image/jpeg"
         else -> mime
     }
 
@@ -470,7 +506,7 @@ class CreateOrderViewModel(
 
     private fun String.toMinutes(): Int = try {
         val p = split(":"); p[0].toInt() * 60 + p[1].toInt()
-    } catch (e: Exception) { 0 }
+    } catch (_: Exception) { 0 }
 
     private fun recalculatePricing() {
         val state = _uiState.value
@@ -485,5 +521,46 @@ class CreateOrderViewModel(
                 totalAmount   = docPrice + platform + handling
             )
         }
+    }
+
+    fun convertDocxToPdf(file: File): File {
+
+        val client = OkHttpClient()
+
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                file.asRequestBody("application/octet-stream".toMediaType())
+            )
+            .build()
+
+        val url = "${BuildConfig.CONVERTER_URL}/convert"
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-api-key", BuildConfig.CONVERTER_API_KEY)
+            .post(requestBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            throw Exception("Conversion failed: ${response.code}")
+        }
+
+        val pdfFile = File(
+            file.parent,
+            file.name.substringBeforeLast(".") + ".pdf"
+        )
+
+        response.body?.byteStream()?.use { input ->
+            pdfFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: throw Exception("Empty response body")
+
+        return pdfFile
     }
 }

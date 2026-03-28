@@ -33,6 +33,17 @@ android {
             "RAZORPAY_KEY_ID",
             "\"$razorpayKeyId\""
         )
+        buildConfigField(
+            "String",
+            "CONVERTER_URL",
+            "\"${project.findProperty("CONVERTER_URL")}\""
+        )
+
+        buildConfigField(
+            "String",
+            "CONVERTER_API_KEY",
+            "\"${project.findProperty("CONVERTER_API_KEY")}\""
+        )
     }
 
     buildTypes {

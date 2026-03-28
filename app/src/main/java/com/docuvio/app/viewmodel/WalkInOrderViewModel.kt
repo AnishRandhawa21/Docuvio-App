@@ -1,15 +1,23 @@
 package com.docuvio.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.docuvio.app.data.model.RazorpayHolder
+import com.docuvio.app.BuildConfig
 import com.docuvio.app.data.repository.OrderRepository
 import com.docuvio.app.data.repository.Result
+import com.docuvio.app.ui.order.utils.DocxConverter
+import com.docuvio.app.utils.PdfUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 
 enum class WalkInOrderStage {
     Idle,
@@ -24,6 +32,8 @@ enum class WalkInOrderStage {
 data class WalkInOrderUiState(
     val stage: WalkInOrderStage = WalkInOrderStage.Idle,
     val pageCount: Int = 0,
+    val isConverting: Boolean = false,        // ← ADD
+    val conversionError: String? = null,
     val uploadProgress: Int = 0,
     val selectedFile: File? = null,
     val selectedFileMimeType: String = "application/octet-stream",  // ← MIME carried through upload
@@ -32,9 +42,9 @@ data class WalkInOrderUiState(
     val error: String? = null,
     val isSuccess: Boolean = false
 ) {
-    val isLoading: Boolean get() = stage != WalkInOrderStage.Idle && stage != WalkInOrderStage.WaitingForPayment
-    val uploadingFile: Boolean get() = stage == WalkInOrderStage.UploadingFile
-    val isWaitingForPayment: Boolean get() = stage == WalkInOrderStage.WaitingForPayment
+//    val isLoading: Boolean get() = stage != WalkInOrderStage.Idle && stage != WalkInOrderStage.WaitingForPayment
+//    val uploadingFile: Boolean get() = stage == WalkInOrderStage.UploadingFile
+//    val isWaitingForPayment: Boolean get() = stage == WalkInOrderStage.WaitingForPayment
 }
 
 class WalkInOrderViewModel(
@@ -51,26 +61,124 @@ class WalkInOrderViewModel(
         _uiState.value = _uiState.value.copy(amount = value)
     }
 
-    fun setNotes(value: String) {
-        _uiState.value = _uiState.value.copy(notes = value)
+    fun setFile(file: File, mimeType: String) {
+        val canonical = normaliseMime(mimeType)
+        Log.d("WalkInVM", "setFile called — file: ${file.name}, size: ${file.length()}, mime: $canonical")
+
+        val isDocx = file.extension.lowercase() == "docx" ||
+                canonical.contains("word") ||
+                canonical.contains("officedocument")
+
+        Log.d("WalkInVM", "isDocx: $isDocx (extension=${file.extension}, mime=$canonical)")
+
+        if (isDocx) {
+            Log.d("WalkInVM", "DOCX detected — setting isConverting = true")
+            _uiState.update {
+                it.copy(
+                    isConverting = true,
+                    conversionError = null,
+                    selectedFile = null,
+                    pageCount = 0
+                )
+            }
+        } else {
+            Log.d("WalkInVM", "Non-DOCX — storing file directly")
+            _uiState.update {
+                it.copy(
+                    selectedFile = file,
+                    selectedFileMimeType = canonical
+                )
+            }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (finalFile, finalMime) = if (isDocx) {
+                    Log.d("WalkInVM", "Starting DOCX → PDF conversion")
+                    val converted = DocxConverter.convertToPdf(file)
+                    Log.d("WalkInVM", "Conversion done — PDF: ${converted.absolutePath}, size: ${converted.length()}")
+                    Pair(converted, "application/pdf")
+                } else {
+                    Pair(file, canonical)
+                }
+
+                val pageCount = if (finalMime == "application/pdf") {
+                    val count = PdfUtils.getPdfPageCount(finalFile)
+                    Log.d("WalkInVM", "Page count: $count")
+                    count
+                } else 1
+
+                Log.d("WalkInVM", "Updating UI — file ready, isConverting = false")
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        conversionError = null,
+                        selectedFile = finalFile,
+                        selectedFileMimeType = finalMime,
+                        pageCount = pageCount
+                    )
+                }
+
+            } catch (e: Exception) {
+                Log.e("WalkInVM", "Conversion/processing failed", e)
+                Log.e("WalkInVM", "Exception type: ${e.javaClass.name}")
+                Log.e("WalkInVM", "Exception message: ${e.message}")
+                e.cause?.let { Log.e("WalkInVM", "Caused by: ${it.javaClass.name}: ${it.message}") }
+
+                _uiState.update {
+                    it.copy(
+                        isConverting = false,
+                        selectedFile = null,
+                        conversionError = "Could not convert file: ${e.message ?: e.javaClass.simpleName}"
+                    )
+                }
+            }
+        }
     }
 
-    // Called from UI after file is copied to cache — receives resolved, normalised MIME
-    fun setFile(file: File, pageCount: Int, mimeType: String) {
-        val canonical = normaliseMime(mimeType)
-        val correctExt = mimeToExtension(canonical)
+    fun clearConversionError() {
+        _uiState.update { it.copy(conversionError = null) }
+    }
 
-        // Ensure filename extension matches the real type
-        val renamedFile = if (file.extension.lowercase() != correctExt) {
-            File(file.parent, "upload_${System.currentTimeMillis()}.$correctExt")
-                .also { dest -> file.renameTo(dest) }
-        } else file
+    fun convertDocxToPdf(file: File): File {
 
-        _uiState.value = _uiState.value.copy(
-            selectedFile = renamedFile,
-            selectedFileMimeType = canonical,
-            pageCount = pageCount
+        val client = OkHttpClient()
+
+        val requestBody = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "file",
+                file.name,
+                file.asRequestBody("application/octet-stream".toMediaType())
+            )
+            .build()
+
+        val url = "${BuildConfig.CONVERTER_URL}/convert"
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("x-api-key", BuildConfig.CONVERTER_API_KEY)
+            .post(requestBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            throw Exception("Conversion failed: ${response.code}")
+        }
+
+        val pdfFile = File(
+            file.parent,
+            file.name.substringBeforeLast(".") + ".pdf"
         )
+
+        response.body?.byteStream()?.use { input ->
+            pdfFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: throw Exception("Empty response body")
+
+        return pdfFile
     }
 
     fun clearError() {
@@ -227,14 +335,8 @@ class WalkInOrderViewModel(
     /* ---------------- PRIVATE HELPERS ---------------- */
 
     private fun normaliseMime(mime: String): String = when (mime.lowercase().trim()) {
-        "image/jpg", "image/pjpeg" -> "image/jpeg"
+        "image/jpg", "image/JPEG" -> "image/jpeg"
         else -> mime
     }
 
-    private fun mimeToExtension(mime: String): String = when (mime) {
-        "image/jpeg"      -> "jpg"
-        "image/png"       -> "png"
-        "application/pdf" -> "pdf"
-        else              -> "bin"
-    }
 }

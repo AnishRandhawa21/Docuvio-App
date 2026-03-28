@@ -74,7 +74,7 @@ class TokenManager(private val context: Context) {
             if (expSeconds == 0L) return null
 
             expSeconds * 1000 // convert to milliseconds
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -86,9 +86,6 @@ class TokenManager(private val context: Context) {
         context.dataStore.data.first()[TOKEN_KEY]
     }
 
-    val tokenFlow: Flow<String?> =
-        context.dataStore.data.map { prefs -> prefs[TOKEN_KEY] }
-
     /* ---------------- USER INFO ---------------- */
 
     suspend fun saveUserInfo(userId: String, userName: String, email: String, role: String) {
@@ -98,10 +95,6 @@ class TokenManager(private val context: Context) {
             prefs[USER_EMAIL_KEY] = email
             prefs[USER_ROLE_KEY] = role
         }
-    }
-
-    suspend fun getUserName(): String? {
-        return context.dataStore.data.first()[USER_NAME_KEY]
     }
 
     val userNameFlow: Flow<String?> =

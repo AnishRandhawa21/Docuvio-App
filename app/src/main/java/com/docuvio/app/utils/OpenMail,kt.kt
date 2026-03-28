@@ -12,7 +12,7 @@ fun openEmailApp(context: Context) {
 
     try {
         context.startActivity(intent)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Toast.makeText(
             context,
             "No email app found",

@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,8 +31,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.ui.composed
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.firebase.registerFcmToken
@@ -54,7 +51,6 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     tokenManager: com.docuvio.app.core.auth.TokenManager,
     notificationApi: com.docuvio.app.data.api.NotificationApi,
-    onShopClick: (String) -> Unit,
     onScheduleClick: (String) -> Unit,
     onOrderNowClick: (String) -> Unit
 ){
@@ -320,23 +316,7 @@ private fun formatTime(time: String): String {
         val hour12 = when { hour24 == 0 -> 12; hour24 > 12 -> hour24 - 12; else -> hour24 }
         val amPm = if (hour24 < 12) "AM" else "PM"
         "$hour12:$minute $amPm"
-    } catch (e: Exception) { time }
-}
-
-// --------------------------------------------------
-// 👆 PRESS ANIMATION (modifier)
-// --------------------------------------------------
-fun Modifier.pressAnimation(enabled: Boolean = true, scaleDown: Float = 0.96f): Modifier = composed {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && enabled) scaleDown else 1f,
-        animationSpec = tween(durationMillis = 120),
-        label = "pressScale"
-    )
-    this
-        .graphicsLayer { scaleX = scale; scaleY = scale }
-        .clickable(interactionSource = interactionSource, indication = null, enabled = false) {}
+    } catch (_: Exception) { time }
 }
 
 // --------------------------------------------------

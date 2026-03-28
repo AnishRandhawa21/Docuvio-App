@@ -88,12 +88,4 @@ class OrdersViewModel(
         }
     }
 
-    /**
-     * ✅ MUST be called on logout or account switch
-     */
-    fun clearOrders() {
-        loadJob?.cancel()
-        loadJob = null
-        _uiState.value = OrdersUiState()
-    }
 }

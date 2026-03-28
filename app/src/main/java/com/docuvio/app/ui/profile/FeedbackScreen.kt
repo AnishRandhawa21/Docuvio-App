@@ -60,12 +60,12 @@ fun submitFeedback(
     client.newCall(request).enqueue(object : Callback {
 
         override fun onFailure(call: Call, e: java.io.IOException) {
-            android.util.Log.e("FEEDBACK_FORM", "Request failed", e)
+            Log.e("FEEDBACK_FORM", "Request failed", e)
             onResult(false)
         }
 
         override fun onResponse(call: Call, response: Response) {
-            android.util.Log.d("FEEDBACK_FORM", "Form submitted")
+            Log.d("FEEDBACK_FORM", "Form submitted")
             val body = response.body?.string()
             Log.d("FEEDBACK_FORM", "Response: $body")
             onResult(true)
@@ -83,10 +83,9 @@ fun FeedbackScreen(
 ) {
 
     val email by tokenManager.userEmailFlow.collectAsState(initial = "")
-    val username by tokenManager.userNameFlow.collectAsState(initial = "")
 
     var message by remember { mutableStateOf("") }
-    var rating by remember { mutableStateOf(5) }
+    var rating by remember { mutableIntStateOf(5) }
     var type by remember { mutableStateOf("General Feedback") }
 
     var loading by remember { mutableStateOf(false) }

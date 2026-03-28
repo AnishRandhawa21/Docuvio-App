@@ -44,7 +44,7 @@ fun ProfileScreen(
 
     if (showLogoutDialog) {
         AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
+            onDismissRequest = { },
 
             // 🔲 popup background
             containerColor = Cream, // CHANGED: from Color(0xFF2B2B2B) to Color.White
@@ -72,7 +72,6 @@ fun ProfileScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showLogoutDialog = false
                         viewModel.logout(onLogout)
                     },
                     colors = ButtonDefaults.textButtonColors(
@@ -85,7 +84,7 @@ fun ProfileScreen(
 
             dismissButton = {
                 TextButton(
-                    onClick = { showLogoutDialog = false },
+                    onClick = { },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = AlmostBlack // CHANGED: from Color.White to AlmostBlack
                     )
@@ -191,7 +190,7 @@ fun ProfileScreen(
 
                     // Logout Button
                     Button( // CHANGED: from TextButton to Button for better visual
-                        onClick = { showLogoutDialog = true },
+                        onClick = { },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp), // ADDED: fixed height

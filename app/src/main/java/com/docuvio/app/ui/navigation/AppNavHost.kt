@@ -227,9 +227,6 @@ fun AppNavHost(
                 viewModel = viewModel,
                 tokenManager = appContainer.tokenManager,
                 notificationApi = appContainer.notificationApi,
-                onShopClick = { shopId ->
-                    navController.navigate(Routes.CreateOrder.createRoute(shopId))
-                },
                 onScheduleClick = { shopId ->
                     navController.navigate(Routes.CreateOrder.createRoute(shopId))
                 },
@@ -372,7 +369,6 @@ fun AppNavHost(
                 ?: return@composable
 
             CreateOrderScreen(
-                shopId = shopId,
                 viewModelFactory = CreateOrderViewModelFactory(
                     appContainer.shopRepository,
                     appContainer.orderRepository,
