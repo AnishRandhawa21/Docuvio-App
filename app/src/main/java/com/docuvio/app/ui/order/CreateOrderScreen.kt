@@ -985,6 +985,12 @@ fun SelectOptionsContent(
                         enabled = !uiState.isCvMode,
                         onSelect = onFinishTypeSelect
                     )
+                    Text(
+                        "Note: For spiral binding, select Finish Type",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        color = DarkBlue,
+                        maxLines = 1
+                    )
 
                     Spacer(Modifier.height(24.dp))
 

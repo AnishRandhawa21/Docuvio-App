@@ -20,8 +20,8 @@ android {
         applicationId = "com.docuvio.app"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.1"
+        versionCode = 4
+        versionName = "1.0.2"
 
         buildConfigField(
             "String",
@@ -73,6 +73,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.foundation)
+    implementation(libs.androidx.material3)
     // -------------------------
     // UNIT TESTS
     // -------------------------

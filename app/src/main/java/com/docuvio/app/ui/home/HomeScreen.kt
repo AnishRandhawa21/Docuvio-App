@@ -40,6 +40,7 @@ import com.docuvio.app.theme.LimeGreen
 import com.docuvio.app.theme.MediumGray
 import com.docuvio.app.theme.OffWhite
 import com.docuvio.app.utils.ShopStatusResolver
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // --------------------------------------------------
@@ -81,6 +82,23 @@ fun HomeScreen(
 
     val isSearching = searchQuery.isNotBlank()
     val noSearchResults = isSearching && filteredShops.isEmpty()
+
+    // ── Multiple Click Prevention ────────────────────
+    var isNavigating by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    val handleNavigate = { action: (String) -> Unit, shopId: String ->
+        if (!isNavigating) {
+            isNavigating = true
+            action(shopId)
+            // Re-enable after a short delay or navigation cycle
+            scope.launch {
+                delay(1000)
+                isNavigating = false
+            }
+        }
+    }
+    // ────────────────────────────────────────────────
 
     PullToRefreshBox(
         state = pullToRefreshState,
@@ -130,8 +148,12 @@ fun HomeScreen(
             Spacer(Modifier.height(16.dp))
 
             when {
-                uiState.isLoading && uiState.shops.isEmpty() -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Handle initial loading and gap: Show skeletons if we have no shops and no error yet
+                uiState.shops.isEmpty() && uiState.error == null -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                         items(6) { SkeletonShopCard() }
                     }
                 }
@@ -142,7 +164,8 @@ fun HomeScreen(
                     }
                 }
 
-                uiState.shops.isEmpty() -> {
+                uiState.shops.isEmpty() && uiState.error != null -> {
+                    // Show connection lost image
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -155,6 +178,7 @@ fun HomeScreen(
                 }
 
                 else -> {
+                    // Show the actual shops
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 90.dp)
@@ -162,8 +186,8 @@ fun HomeScreen(
                         items(filteredShops) { shop ->
                             ShopCard(
                                 shop = shop,
-                                onScheduleClick = onScheduleClick,
-                                onOrderNowClick = onOrderNowClick
+                                onScheduleClick = { handleNavigate(onScheduleClick, it) },
+                                onOrderNowClick = { handleNavigate(onOrderNowClick, it) }
                             )
                         }
                     }

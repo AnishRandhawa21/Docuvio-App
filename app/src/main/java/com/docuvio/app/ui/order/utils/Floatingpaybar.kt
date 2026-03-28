@@ -91,14 +91,23 @@ fun FloatingPayBar(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+
+                    Column {
+                        Text(
+                            text = "Total ${uiState.pageCount ?: 0} pages",
+                            color = Color(0xFFB0B0B0), // or MediumGray
+                            fontSize = 13.sp
+                        )
+
+                        Text(
+                            text = "Incl. Platform Fee",
+                            color = Color(0xFFB0B0B0),
+                            fontSize = 11.sp
+                        )
+                    }
+
                     Text(
-                        text = "Total ${uiState.pageCount ?: 0} pages",
-                        color = MediumGray,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                    Text(
-                        text = "₹ ${String.format("%.2f", total.toFloat())}",
+                        text = "₹ $total",
                         color = Color.White,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
