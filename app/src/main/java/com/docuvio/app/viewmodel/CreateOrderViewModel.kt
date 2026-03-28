@@ -21,6 +21,7 @@ import java.util.Date
 import java.util.Locale
 import com.docuvio.app.ui.order.utils.PricingUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -77,6 +78,7 @@ class CreateOrderViewModel(
     val uiState: StateFlow<CreateOrderUiState> = _uiState.asStateFlow()
 
     private var currentOrderId: String? = null
+    private var orderJob: Job? = null
 
     init {
         loadShop()
@@ -225,7 +227,8 @@ class CreateOrderViewModel(
     /* ---------------- ORDER FLOW ---------------- */
 
     fun submitOrder(onPaymentRequired: (String, Int) -> Unit) {
-        viewModelScope.launch {
+        orderJob?.cancel()
+        orderJob = viewModelScope.launch {
             val state = _uiState.value
 
             val shop = state.shop ?: run {
@@ -398,6 +401,7 @@ class CreateOrderViewModel(
     }
 
     fun setPaymentCancelled() {
+        orderJob?.cancel()
         _uiState.update { it.copy(currentStep = OrderStep.SELECT_OPTIONS, error = "Payment cancelled") }
     }
 
@@ -408,7 +412,7 @@ class CreateOrderViewModel(
 
         val bondPaper = options.paperTypes.find { it.name.lowercase() == "bond" }
         val bondColor = options.colorModes.find { it.name.lowercase() == "bond" }
-        val normalFinish = options.finishTypes.find { it.name.lowercase() == "normal" }
+        val standardFinish = options.finishTypes.find { it.name.lowercase() == "standard" }
             ?: options.finishTypes.firstOrNull { it.name.lowercase() != "bond" }
 
         if (bondPaper == null) {
@@ -421,7 +425,7 @@ class CreateOrderViewModel(
                 isCvMode = true,
                 selectedPaperType = bondPaper,
                 selectedColorMode = bondColor ?: it.selectedColorMode,
-                selectedFinishType = normalFinish ?: it.selectedFinishType,
+                selectedFinishType = standardFinish ?: it.selectedFinishType,
             )
         }
         recalculatePricing()

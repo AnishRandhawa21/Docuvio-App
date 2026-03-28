@@ -87,18 +87,10 @@ fun CreateOrderScreen(
         null
     }
 
-    // ── FIXED FILE PICKER ─────────────────────────────────────────────────────
-    // Previously: mimeType was resolved but then thrown away before calling
-    //             setFileAndReadPages — so the ViewModel and repository always
-    //             uploaded with application/octet-stream, corrupting JPEGs on
-    //             the server side.
-    // Now:        canonical mimeType flows all the way into the ViewModel and
-    //             from there into the multipart upload request.
     val filePickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri ?: return@rememberLauncherForActivityResult
 
-            // Step 1: resolve true MIME from ContentResolver
             val rawMime = context.contentResolver.getType(uri) ?: "application/octet-stream"
 
             val mimeType = when (rawMime.lowercase().trim()) {
@@ -106,7 +98,6 @@ fun CreateOrderScreen(
                 else -> rawMime
             }
 
-            // Step 3: derive extension from the canonical MIME (not from filename)
             val extension = when {
                 mimeType.contains("pdf")  -> "pdf"
                 mimeType.contains("png")  -> "png"
@@ -114,46 +105,50 @@ fun CreateOrderScreen(
                 else -> "bin"
             }
 
-            // Step 4: copy bytes — both streams in try-with-resources, flush before use
             val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.$extension")
             try {
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(file).use { output ->
                         input.copyTo(output)
-                        output.flush()  // force OS buffer → disk before ViewModel reads file
+                        output.flush()
                     }
                 } ?: run {
                     viewModel.setError("Could not read the selected file. Please try another.")
                     return@rememberLauncherForActivityResult
                 }
             } catch (e: IOException) {
-                file.delete()  // don't leave a partial file in cache
+                file.delete()
                 Log.e("FilePicker", "Copy failed for $uri", e)
                 viewModel.setError("Failed to copy file. Please try again.")
                 return@rememberLauncherForActivityResult
             }
 
-            // Step 5: pass file AND its canonical mimeType to ViewModel
+            // Pre-upload file size check (e.g., 50MB for reasonable mobile experience, though UI says 500MB)
+            if (file.length() > 500 * 1024 * 1024) {
+                file.delete()
+                viewModel.setError("File is too large (max 500MB).")
+                return@rememberLauncherForActivityResult
+            }
+
             viewModel.setFileAndReadPages(file, mimeType)
         }
-    // ─────────────────────────────────────────────────────────────────────────
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onOrderSuccess()
     }
 
+    // Fixed: Using SharedFlow from RazorpayHolder instead of polling loop
     LaunchedEffect(Unit) {
-        while (true) {
-            RazorpayHolder.result?.let {
-                RazorpayHolder.result = null
-                if (it.paymentId.isBlank() || it.signature.isBlank()) {
-                    viewModel.clearError()
-                    viewModel.setPaymentCancelled()
-                    return@let
+        RazorpayHolder.resultFlow.collect { result ->
+            if (result.cancelled || !result.errorMessage.isNullOrBlank()) {
+                viewModel.clearError()
+                viewModel.setPaymentCancelled()
+                if (!result.errorMessage.isNullOrBlank()) {
+                   viewModel.setError(result.errorMessage)
                 }
-                viewModel.verifyPayment(it.orderId, it.paymentId, it.signature)
+            } else {
+                viewModel.verifyPayment(result.orderId, result.paymentId, result.signature)
             }
-            kotlinx.coroutines.delay(500)
         }
     }
 
@@ -193,10 +188,10 @@ fun CreateOrderScreen(
                     step           = uiState.currentStep,
                     uploadProgress = uiState.uploadProgress,
                     error          = uiState.error,
-                    documentPrice  = uiState.documentPrice,   // ✅ exists
-                    platformFee    = uiState.platformFee,     // ✅ exists
-                    handlingFee    = uiState.handlingFee,     // ✅ already existed
-                    total          = uiState.totalAmount,     // ✅ exists
+                    documentPrice  = uiState.documentPrice,
+                    platformFee    = uiState.platformFee,
+                    handlingFee    = uiState.handlingFee,
+                    total          = uiState.totalAmount,
                     onRetry  = { viewModel.clearError(); },
                     onCancel = { viewModel.setPaymentCancelled(); viewModel.clearError(); }
                 )
@@ -685,12 +680,10 @@ fun SelectOptionsContent(
                                 },
                                 shape = RoundedCornerShape(16.dp)
                             )
-                            // Disable tap while converting
                             .clickable(enabled = !uiState.isConverting) { onFileSelect() },
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            // ── Converting spinner ──────────────────────────────────────────
                             uiState.isConverting -> {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -717,7 +710,6 @@ fun SelectOptionsContent(
                                 }
                             }
 
-                            // ── File selected (PDF/image preview) ───────────────────────────
                             uiState.selectedFile != null -> {
                                 FilePreview(
                                     file = uiState.selectedFile,
@@ -757,7 +749,6 @@ fun SelectOptionsContent(
                                 }
                             }
 
-                            // ── Conversion failed ────────────────────────────────────────────
                             uiState.conversionError != null -> {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -786,7 +777,6 @@ fun SelectOptionsContent(
                                 }
                             }
 
-                            // ── Empty state ──────────────────────────────────────────────────
                             else -> {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -951,12 +941,6 @@ fun SelectOptionsContent(
                                             textAlign = TextAlign.Center,
                                             maxLines = 1
                                         )
-//                                        Spacer(Modifier.height(2.dp))
-//                                        Text(
-//                                            "₹${colorMode.extraPrice}/page",
-//                                            style = MaterialTheme.typography.bodySmall,
-//                                            color = if (isSelected) Color(0xFF2E7D32) else MediumGray
-//                                        )
                                     }
                                     Spacer(Modifier.height(12.dp))
                                     Row(
@@ -986,7 +970,6 @@ fun SelectOptionsContent(
                         selected = uiState.selectedPaperType?.name ?: "",
                         items = filteredPaperTypes,
                         itemText = { "${it.name}" },
-//                        - ₹${it.basePrice}
                         enabled = !uiState.isCvMode,
                         onSelect = onPaperTypeSelect
                     )
@@ -999,7 +982,6 @@ fun SelectOptionsContent(
                         selected = uiState.selectedFinishType?.name ?: "",
                         items = filteredFinishTypes,
                         itemText = { "${it.name}" },
-//                        - ₹${it.extraPrice}
                         enabled = !uiState.isCvMode,
                         onSelect = onFinishTypeSelect
                     )

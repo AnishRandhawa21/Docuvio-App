@@ -53,11 +53,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         FirebaseMessaging.getInstance().token
             .addOnCompleteListener { task ->
                 if (!task.isSuccessful) {
-                    Log.d("FCM", "Fetching FCM failed")
                     return@addOnCompleteListener
                 }
                 val token = task.result
-                Log.d("FCM", "Manual token fetch → $token")
+                // FCM token logging removed for security
             }
 
         setContent {
@@ -138,7 +137,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             RazorpayHolder.result = RazorpayResult(
                 orderId = paymentData?.orderId ?: "",
                 paymentId = "",
-                signature = ""
+                signature = "",
+                cancelled = true
             )
             Log.d("RAZORPAY", "PAYMENT CANCELLED BY USER")
             return
@@ -147,7 +147,8 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         RazorpayHolder.result = RazorpayResult(
             orderId = paymentData?.orderId ?: "",
             paymentId = "",
-            signature = ""
+            signature = "",
+            errorMessage = description
         )
         Log.e("RAZORPAY", "PAYMENT FAILED → $description")
     }

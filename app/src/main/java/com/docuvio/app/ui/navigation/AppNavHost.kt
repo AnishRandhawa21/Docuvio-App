@@ -39,11 +39,12 @@ import com.docuvio.app.theme.Cream
 import android.app.Activity
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 
 // ── Which routes are stack screens (pushed on top of tabs) ───
 private val STACK_ROUTES = setOf(
-    "create_order",
-    "walkin_order",
+    "createOrder",
+    "walkInOrder",
     "delete_account",
     "feedback",
     "login",
@@ -321,8 +322,12 @@ fun AppNavHost(
                     shopId = shopId
                 ),
                 onSuccess = {
-                    navController.popBackStack(Routes.Home.route, inclusive = false)
+                    // Navigate to Orders and CLEAR the stack Order screens (no saveState)
                     navController.navigate(Routes.Orders.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = false
+                            saveState = false
+                        }
                         launchSingleTop = true
                     }
                 }
@@ -375,8 +380,12 @@ fun AppNavHost(
                     shopId
                 ),
                 onOrderSuccess = {
-                    navController.popBackStack(Routes.Home.route, inclusive = false)
+                    // Navigate to Orders and CLEAR the stack Order screens (no saveState)
                     navController.navigate(Routes.Orders.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = false
+                            saveState = false
+                        }
                         launchSingleTop = true
                     }
                 }

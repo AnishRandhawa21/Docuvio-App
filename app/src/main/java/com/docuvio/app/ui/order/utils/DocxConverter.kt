@@ -1,13 +1,16 @@
 package com.docuvio.app.ui.order.utils
 
-
 import android.util.Log
 import com.docuvio.app.BuildConfig
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 object DocxConverter {
 
@@ -17,23 +20,26 @@ object DocxConverter {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    fun convertToPdf(file: File): File {
+    suspend fun convertToPdf(file: File): File = suspendCancellableCoroutine { continuation ->
         Log.d("DocxConverter", "convertToPdf called — file: ${file.absolutePath}")
-        Log.d("DocxConverter", "File exists: ${file.exists()}, size: ${file.length()} bytes")
-        Log.d("DocxConverter", "CONVERTER_URL: ${BuildConfig.CONVERTER_URL}")
+        
+        if (!file.exists()) {
+            continuation.resumeWithException(Exception("Source file not found: ${file.name}"))
+            return@suspendCancellableCoroutine
+        }
+        if (file.length() == 0L) {
+            continuation.resumeWithException(Exception("Source file is empty: ${file.name}"))
+            return@suspendCancellableCoroutine
+        }
 
-        if (!file.exists()) throw Exception("Source file not found: ${file.name}")
-        if (file.length() == 0L) throw Exception("Source file is empty: ${file.name}")
-
-        // ✅ Use the real DOCX MIME type so the server can identify the file
         val docxMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
                 "file",
-                file.name,                                          // filename with .docx extension
-                file.asRequestBody(docxMimeType.toMediaType())     // ← correct MIME, not octet-stream
+                file.name,
+                file.asRequestBody(docxMimeType.toMediaType())
             )
             .build()
 
@@ -43,40 +49,43 @@ object DocxConverter {
             .post(requestBody)
             .build()
 
-        Log.d("DocxConverter", "Sending request to: ${request.url}")
-        Log.d("DocxConverter", "File Content-Type in multipart: $docxMimeType")
-        Log.d("DocxConverter", "Filename sent: ${file.name}")
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
 
-        val response = try {
-            client.newCall(request).execute()
-        } catch (e: Exception) {
-            Log.e("DocxConverter", "Network call failed", e)
-            throw Exception("Network error during conversion: ${e.message}")
-        }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("DocxConverter", "Network call failed", e)
+                continuation.resumeWithException(Exception("Network error during conversion: ${e.message}"))
+            }
 
-        Log.d("DocxConverter", "Response code: ${response.code}")
+            override fun onResponse(call: Call, response: Response) {
+                response.use { resp ->
+                    if (!resp.isSuccessful) {
+                        val errorBody = resp.body?.string() ?: "no body"
+                        Log.e("DocxConverter", "Server error body: $errorBody")
+                        continuation.resumeWithException(Exception("Conversion failed (HTTP ${resp.code})"))
+                        return
+                    }
 
-        if (!response.isSuccessful) {
-            val errorBody = response.body?.string() ?: "no body"
-            Log.e("DocxConverter", "Server error body: $errorBody")
-            throw Exception("Conversion failed (HTTP ${response.code}): $errorBody")
-        }
+                    try {
+                        val pdfFile = File(
+                            file.parent,
+                            file.name.substringBeforeLast(".") + "_converted.pdf"
+                        )
 
-        val pdfFile = File(
-            file.parent,
-            file.name.substringBeforeLast(".") + "_converted.pdf"
-        )
+                        val bytes = resp.body?.bytes()
+                            ?: throw Exception("Converter returned empty response body")
 
-        val bytes = response.body?.bytes()
-            ?: throw Exception("Converter returned empty response body")
+                        if (bytes.isEmpty()) throw Exception("Converter returned zero bytes")
 
-        Log.d("DocxConverter", "Received ${bytes.size} bytes from converter")
-
-        if (bytes.isEmpty()) throw Exception("Converter returned zero bytes")
-
-        pdfFile.writeBytes(bytes)
-        Log.d("DocxConverter", "PDF written to: ${pdfFile.absolutePath}, size: ${pdfFile.length()}")
-
-        return pdfFile
+                        pdfFile.writeBytes(bytes)
+                        Log.d("DocxConverter", "PDF written to: ${pdfFile.absolutePath}, size: ${pdfFile.length()}")
+                        continuation.resume(pdfFile)
+                    } catch (e: Exception) {
+                        continuation.resumeWithException(e)
+                    }
+                }
+            }
+        })
     }
 }
