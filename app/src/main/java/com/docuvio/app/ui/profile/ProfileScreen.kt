@@ -39,6 +39,7 @@ fun ProfileScreen(
     onDeleteClick: () -> Unit,
     onFeedbackClick: () -> Unit
 ) {
+    val isLoggingOut = viewModel.isLoggingOut
     val userName by tokenManager.userNameFlow.collectAsState(initial = "User")
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -75,8 +76,9 @@ fun ProfileScreen(
                         showLogoutDialog = false
                         viewModel.logout(onLogout)
                     },
+                    enabled = !isLoggingOut,
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = CoralRed // CHANGED: from Color(0xFFFF9500) to red for logout action
+                        contentColor = CoralRed
                     )
                 ) {
                     Text("Logout")
@@ -190,25 +192,34 @@ fun ProfileScreen(
                     )
 
                     // Logout Button
-                    Button( // CHANGED: from TextButton to Button for better visual
+                    Button(
                         onClick = { showLogoutDialog = true },
+                        enabled = !isLoggingOut,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp), // ADDED: fixed height
+                            .height(48.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFEBEE), // CHANGED: Light red background
-                            contentColor = CoralRed, // CHANGED: Red text for logout
-                            disabledContainerColor = MediumGray.copy(alpha = 0.2f),
-                            disabledContentColor = MediumGray
+                            containerColor = Color(0xFFFFEBEE),
+                            contentColor = CoralRed,
+                            disabledContainerColor = Color(0xFFFFEBEE),
+                            disabledContentColor = CoralRed.copy(alpha = 0.6f)
                         ),
-                        shape = RoundedCornerShape(12.dp) // ADDED: rounded corners
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(
-                            text = "Logout",
-                            style = MaterialTheme.typography.titleSmall.copy( // CHANGED: Better text style
-                                fontWeight = FontWeight.SemiBold
+                        if (isLoggingOut) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = CoralRed,
+                                strokeWidth = 2.dp
                             )
-                        )
+                        } else {
+                            Text(
+                                text = "Logout",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
 

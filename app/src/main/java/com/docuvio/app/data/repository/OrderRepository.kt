@@ -109,6 +109,7 @@ class OrderRepository(
         colorModeId: String,
         finishTypeId: String,
         pickupAt: String?,
+        printSide: String,
         isHandled: Boolean
     ): Result<Unit> {
         return try {
@@ -123,6 +124,7 @@ class OrderRepository(
                     colorModeId = colorModeId,
                     finishTypeId = finishTypeId,
                     pickupAt = pickupAt,
+                    printSide = printSide
                 )
             )
             if (!response.isSuccessful) {

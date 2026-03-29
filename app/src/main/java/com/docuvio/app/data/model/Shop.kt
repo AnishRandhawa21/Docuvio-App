@@ -39,7 +39,9 @@ data class PaperType(
     val id: String,
     val name: String,
     @SerializedName("base_price")
-    val basePrice: Int
+    val basePrice: Int,
+    @SerializedName("double_side_price")
+    val doubleSidePrice: Int
 )
 
 data class ColorMode(

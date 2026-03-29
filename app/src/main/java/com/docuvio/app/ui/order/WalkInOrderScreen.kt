@@ -174,7 +174,7 @@ fun WalkInOrderScreen(
                     uploadProgress = uiState.uploadProgress,
                     error          = uiState.error,
                     onRetry        = { viewModel.clearError() },
-                    onCancel       = { viewModel.resetState() }
+                    onCancel       = { viewModel.cancelOrder() }
                 )
             } else {
                 FormView(
@@ -212,7 +212,7 @@ private fun FormView(
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()      // ← was fillMaxSize()
                 .imePadding()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
@@ -387,7 +387,52 @@ private fun FormView(
             }
 
             Spacer(Modifier.height(24.dp))
-            SectionLabel("Manual Price")
+            AnimatedVisibility(
+                visible = uiState.amount.isNotBlank() && baseAmount > 0,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DarkBlue.copy(alpha = 0.04f))
+                        .border(1.dp, DarkBlue.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Print cost", fontSize = 14.sp, color = MediumGray)
+                        Text("₹ $baseAmount", fontSize = 14.sp, color = AlmostBlack, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Convenience fee", fontSize = 14.sp, color = MediumGray)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                if (baseAmount < 100) "under ₹100" else "₹100+",
+                                fontSize = 10.sp,
+                                color = DarkBlue.copy(alpha = 0.6f),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(DarkBlue.copy(alpha = 0.08f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                        Text("+ ₹ $convenienceFee", fontSize = 14.sp, color = AlmostBlack, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider(color = DarkBlue.copy(alpha = 0.1f), thickness = 1.dp)
+                    Spacer(Modifier.height(10.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AlmostBlack)
+                        Text("₹ $finalTotal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkBlue)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            SectionLabel("Enter Price")
             Spacer(Modifier.height(10.dp))
 
             Box(
@@ -414,7 +459,9 @@ private fun FormView(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = AlmostBlack),
                         modifier = Modifier.fillMaxWidth().onFocusChanged { f ->
-                            if (f.isFocused) scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                            if (f.isFocused) scope.launch {
+                                kotlinx.coroutines.delay(300)
+                                scrollState.animateScrollTo(scrollState.maxValue) }
                         }
                     ) { inner ->
                         if (uiState.amount.isEmpty()) Text("Enter amount", color = MediumGray, fontSize = 16.sp)
@@ -422,8 +469,7 @@ private fun FormView(
                     }
                 }
             }
-
-            Spacer(Modifier.height(140.dp))
+            Spacer(Modifier.height(200.dp))
         }
         WalkInFloatingPayBar(
             total = finalTotal,

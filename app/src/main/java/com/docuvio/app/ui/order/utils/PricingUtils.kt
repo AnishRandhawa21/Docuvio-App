@@ -17,10 +17,27 @@ object PricingUtils {
     }
 
     fun calculateDocumentPrice(uiState: CreateOrderUiState): Int {
-        val paperPrice  = uiState.selectedPaperType?.basePrice  ?: 0
+
+        val basePrice = uiState.selectedPaperType?.basePrice ?: 0
+
         val colorPrice  = uiState.selectedColorMode?.extraPrice ?: 0
         val finishPrice = uiState.selectedFinishType?.extraPrice ?: 0
-        return (paperPrice + colorPrice + finishPrice) * uiState.pageCount * uiState.copies
+
+        val pages  = uiState.pageCount
+        val copies = uiState.copies
+
+        if (pages == 0 || copies == 0) return 0
+
+        val sheets = if (uiState.printSide == "double") {
+            kotlin.math.ceil(pages / 2.0).toInt()
+        } else {
+            pages
+        }
+
+        // 🔥 ALWAYS USE BASE PRICE
+        val pricePerSheet = basePrice
+
+        return sheets * copies * (pricePerSheet + colorPrice + finishPrice)
     }
 
     fun calculateHandlingFee(uiState: CreateOrderUiState): Int {

@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +56,13 @@ import com.docuvio.app.ui.order.utils.FloatingPayBar
 import com.docuvio.app.ui.order.utils.formatPickupDateTime
 import com.docuvio.app.ui.order.utils.formatTime
 import com.docuvio.app.ui.order.utils.toMinutes
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.outlined.StayCurrentPortrait
+import androidx.compose.material.icons.outlined.StayCurrentLandscape
+import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.AutoStories
+import androidx.compose.material3.Icon
 
 private val PROCESSING_STEPS = setOf(
     OrderStep.CREATING_ORDER,
@@ -208,6 +214,7 @@ fun CreateOrderScreen(
                     onFinishTypeSelect = viewModel::setFinishType,
                     onCopiesChange = viewModel::setCopies,
                     onOrientationChange = viewModel::setOrientation,
+                    onPrintSideChange = viewModel::setPrintSide,
                     onDescriptionChange = viewModel::setDescription,
                     onPickupAtChange = viewModel::setPickupAt,
                     onCvModeToggle = viewModel::toggleCvMode,
@@ -601,6 +608,7 @@ fun SelectOptionsContent(
     onPaperTypeSelect: (PaperType) -> Unit,
     onColorModeSelect: (ColorMode) -> Unit,
     onFinishTypeSelect: (FinishType) -> Unit,
+    onPrintSideChange: (String) -> Unit,
     onCopiesChange: (Int) -> Unit,
     onOrientationChange: (PrintOrientation) -> Unit,
     onDescriptionChange: (String) -> Unit,
@@ -873,7 +881,6 @@ fun SelectOptionsContent(
                             }
                         }
                     }
-
                     Spacer(Modifier.height(24.dp))
 
                     CvModeToggle(
@@ -985,14 +992,22 @@ fun SelectOptionsContent(
                         enabled = !uiState.isCvMode,
                         onSelect = onFinishTypeSelect
                     )
-                    Text(
-                        "Note: For spiral binding, select Finish Type",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                        color = DarkBlue,
-                        maxLines = 1
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Note: For spiral binding, select Finish Type",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = DarkBlue,
+                            maxLines = 1
+                        )
+                    }
 
                     Spacer(Modifier.height(24.dp))
+
+
 
                     Text(
                         "Orientation",
@@ -1007,6 +1022,13 @@ fun SelectOptionsContent(
                     ) {
                         PrintOrientation.values().forEach { orientation ->
                             val isSelected = uiState.orientation == orientation
+
+                            // Map orientation to icon
+                            val icon = when (orientation) {
+                                PrintOrientation.PORTRAIT  -> Icons.Outlined.StayCurrentPortrait
+                                PrintOrientation.LANDSCAPE -> Icons.Outlined.StayCurrentLandscape
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -1021,14 +1043,115 @@ fun SelectOptionsContent(
                                         RoundedCornerShape(12.dp)
                                     )
                                     .clickable { onOrientationChange(orientation) }
-                                    .padding(16.dp),
+                                    .padding(vertical = 12.dp, horizontal = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = orientation.displayName,
+                                        tint = if (isSelected) DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Text(
+                                        orientation.displayName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) DarkBlue else AlmostBlack
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Text(
+                        "Print Side",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = AlmostBlack
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // 🔹 Single Side
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(80.dp)
+                                .background(
+                                    if (uiState.printSide == "single") SoftBlue.copy(alpha = 0.1f)
+                                    else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    if (uiState.printSide == "single") 2.dp else 1.5.dp,
+                                    if (uiState.printSide == "single") DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onPrintSideChange("single") }
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Article,
+                                    contentDescription = "Single Side",
+                                    tint = if (uiState.printSide == "single") DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(20.dp)
+                                )
                                 Text(
-                                    orientation.displayName,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    "Single Side",
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) DarkBlue else AlmostBlack
+                                    color = if (uiState.printSide == "single") DarkBlue else AlmostBlack
+                                )
+                            }
+                        }
+
+                        // 🔹 Double Side
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(80.dp)
+                                .background(
+                                    if (uiState.printSide == "double") SoftBlue.copy(alpha = 0.1f)
+                                    else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    if (uiState.printSide == "double") 2.dp else 1.5.dp,
+                                    if (uiState.printSide == "double") DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onPrintSideChange("double") }
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.AutoStories,
+                                    contentDescription = "Double Side",
+                                    tint = if (uiState.printSide == "double") DarkBlue else AlmostBlack.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    "Double Side",
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (uiState.printSide == "double") DarkBlue else AlmostBlack
                                 )
                             }
                         }
@@ -1091,7 +1214,7 @@ fun SelectOptionsContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(130.dp).navigationBarsPadding())
+            Spacer(modifier = Modifier.height(140.dp).navigationBarsPadding())
         }
 
         FloatingPayBar(uiState = uiState, onSubmit = onSubmit)
@@ -1227,16 +1350,148 @@ private fun CvModeToggle(
 
 @Composable
 private fun OrderLoadingScreen(text: String) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+
+    // Each line gets a staggered animated progress
+    @Composable
+    fun lineProgress(delayMillis: Int): Float {
+        val raw by infiniteTransition.animateFloat(
+            initialValue = -1f, targetValue = 2f,
+            animationSpec = infiniteRepeatable(
+                tween(1800, delayMillis = delayMillis, easing = FastOutSlowInEasing),
+                RepeatMode.Restart
+            ),
+            label = "line_$delayMillis"
+        )
+        return raw
+    }
+
+    val p1 = lineProgress(0)
+    val p2 = lineProgress(150)
+    val p3 = lineProgress(300)
+    val p4 = lineProgress(450)
+    val p5 = lineProgress(600)
+
+    val dot1 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "d1"
+    )
+    val dot2 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1400, delayMillis = 200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "d2"
+    )
+    val dot3 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1400, delayMillis = 400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "d3"
+    )
+
+    val red   = Color(0xFFE8453C)
+    val amber = Color(0xFFF5A623)
+    val lime  = Color(0xFFC8D837)
+    val trackColor = Color(0xFFE8D5B0)
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream),
+        modifier = Modifier.fillMaxSize().background(Cream),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = GoldenYellow, strokeWidth = 3.dp)
-            Spacer(Modifier.height(14.dp))
-            Text(text, color = MediumGray, style = MaterialTheme.typography.bodyMedium)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(28.dp)
+        ) {
+            // Document card
+            Box(
+                modifier = Modifier
+                    .size(width = 72.dp, height = 90.dp)
+                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.White)
+                    .padding(horizontal = 10.dp, vertical = 12.dp)
+            ) {
+                // Folded corner
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .align(Alignment.TopEnd)
+                        .background(Cream)
+                        .clip(RoundedCornerShape(bottomStart = 6.dp))
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val lines = listOf(
+                        0.80f to p1,
+                        1.00f to p2,
+                        0.65f to p3,
+                        0.90f to p4,
+                        0.50f to p5,
+                    )
+                    lines.forEach { (widthFraction, progress) ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(widthFraction)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(trackColor)
+                        ) {
+                            // Sweeping gradient bar
+                            val alpha = when {
+                                progress < -0.5f -> 0f
+                                progress < 0f    -> (progress + 0.5f) / 0.5f
+                                progress > 1.5f  -> 0f
+                                progress > 1f    -> 1f - (progress - 1f) / 0.5f
+                                else             -> 1f
+                            }.coerceIn(0f, 1f)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(0.5f)
+                                    .offset(x = 72.dp * progress * widthFraction)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                red.copy(alpha = alpha),
+                                                amber.copy(alpha = alpha),
+                                                lime.copy(alpha = alpha)
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Label + dots
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = text.uppercase(),
+                    fontSize = 10.sp,
+                    letterSpacing = 4.sp,
+                    color = Color.Black.copy(alpha = 0.3f),
+                    fontWeight = FontWeight.Normal
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    listOf(dot1 to red, dot2 to amber, dot3 to lime).forEach { (alpha, color) ->
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height(4.dp * (1f + alpha * 0.8f))
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(color.copy(alpha = alpha))
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1596,12 +1851,18 @@ fun PickupDateTimeSection(
             }
         }
         Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         Text(
             "Pickup available between ${formatTime(openTime)} and ${formatTime(closeTime)}",
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
             color = MediumGray,
             maxLines = 1
         )
+    }
     }
 
     if (showTimePicker && selectedDateMillis != null) {

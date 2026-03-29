@@ -25,6 +25,9 @@ data class AttachDocumentRequest(
 
     @SerializedName("pickup_at")
     val pickupAt: String? = null,
+
+    @SerializedName("print_side")
+    val printSide: String
 )
 data class AttachWalkInDocument(
 

@@ -41,6 +41,7 @@ data class CreateOrderUiState(
     val selectedPaperType: PaperType? = null,
     val selectedColorMode: ColorMode? = null,
     val selectedFinishType: FinishType? = null,
+    val printSide: String = "single", // "single" or "double"
     val pageCount: Int = 1,
     val copies: Int = 1,
     val orientation: PrintOrientation = PrintOrientation.PORTRAIT,
@@ -135,6 +136,11 @@ class CreateOrderViewModel(
 
     fun setCopies(copies: Int) {
         _uiState.update { it.copy(copies = copies) }
+        recalculatePricing()
+    }
+
+    fun setPrintSide(side: String) {
+        _uiState.update { it.copy(printSide = side) }
         recalculatePricing()
     }
     fun setOrientation(orientation: PrintOrientation) { _uiState.value = _uiState.value.copy(orientation = orientation) }
@@ -327,7 +333,8 @@ class CreateOrderViewModel(
                 colorModeId = color.id,
                 finishTypeId = finish.id,
                 pickupAt = state.pickupAt,
-                isHandled = state.isHandled
+                isHandled = state.isHandled,
+                printSide = state.printSide
             )
 
             if (attachResult !is Result.Success) {

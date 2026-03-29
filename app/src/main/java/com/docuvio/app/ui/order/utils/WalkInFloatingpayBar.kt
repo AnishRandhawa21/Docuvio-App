@@ -159,8 +159,6 @@ private fun WalkInSwipeToPayButton(
     var completed      by remember { mutableStateOf(false) }
     val animatedOffset  = remember { Animatable(0f) }
 
-    val arrowStartPadding = ThumbSize + TrackPadding + TrackPadding + 10.dp
-
     val arrowAlpha1 by rememberInfiniteTransition(label = "a1").animateFloat(
         initialValue = 0.15f,
         targetValue = 0.85f,
@@ -236,12 +234,12 @@ private fun WalkInSwipeToPayButton(
             modifier = Modifier.align(Alignment.Center)
         )
 
-        // Pulsing arrows
+        // Pulsing arrows — anchored to right edge, not left
         if (!completed) {
             Row(
                 modifier = Modifier
-                    .padding(start = arrowStartPadding)
-                    .fillMaxHeight(),
+                    .align(Alignment.CenterEnd)  // ← right side
+                    .padding(end = 16.dp),       // ← right padding
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {

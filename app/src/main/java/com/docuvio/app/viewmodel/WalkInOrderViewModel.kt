@@ -3,21 +3,18 @@ package com.docuvio.app.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.docuvio.app.BuildConfig
 import com.docuvio.app.data.repository.OrderRepository
 import com.docuvio.app.data.repository.Result
 import com.docuvio.app.ui.order.utils.DocxConverter
 import com.docuvio.app.utils.PdfUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.asRequestBody
 
 enum class WalkInOrderStage {
     Idle,
@@ -32,20 +29,16 @@ enum class WalkInOrderStage {
 data class WalkInOrderUiState(
     val stage: WalkInOrderStage = WalkInOrderStage.Idle,
     val pageCount: Int = 0,
-    val isConverting: Boolean = false,        // ← ADD
+    val isConverting: Boolean = false,
     val conversionError: String? = null,
     val uploadProgress: Int = 0,
     val selectedFile: File? = null,
-    val selectedFileMimeType: String = "application/octet-stream",  // ← MIME carried through upload
+    val selectedFileMimeType: String = "application/octet-stream",
     val amount: String = "",
     val notes: String = "",
     val error: String? = null,
     val isSuccess: Boolean = false
-) {
-//    val isLoading: Boolean get() = stage != WalkInOrderStage.Idle && stage != WalkInOrderStage.WaitingForPayment
-//    val uploadingFile: Boolean get() = stage == WalkInOrderStage.UploadingFile
-//    val isWaitingForPayment: Boolean get() = stage == WalkInOrderStage.WaitingForPayment
-}
+)
 
 class WalkInOrderViewModel(
     private val orderRepository: OrderRepository,
@@ -56,6 +49,7 @@ class WalkInOrderViewModel(
     val uiState: StateFlow<WalkInOrderUiState> = _uiState.asStateFlow()
 
     private var currentOrderId: String? = null
+    private var submitJob: Job? = null
 
     fun setAmount(value: String) {
         _uiState.value = _uiState.value.copy(amount = value)
@@ -140,57 +134,26 @@ class WalkInOrderViewModel(
         _uiState.update { it.copy(conversionError = null) }
     }
 
-    fun convertDocxToPdf(file: File): File {
-
-        val client = OkHttpClient()
-
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "file",
-                file.name,
-                file.asRequestBody("application/octet-stream".toMediaType())
-            )
-            .build()
-
-        val url = "${BuildConfig.CONVERTER_URL}/convert"
-
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("x-api-key", BuildConfig.CONVERTER_API_KEY)
-            .post(requestBody)
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        if (!response.isSuccessful) {
-            throw Exception("Conversion failed: ${response.code}")
-        }
-
-        val pdfFile = File(
-            file.parent,
-            file.name.substringBeforeLast(".") + ".pdf"
-        )
-
-        response.body?.byteStream()?.use { input ->
-            pdfFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        } ?: throw Exception("Empty response body")
-
-        return pdfFile
-    }
-
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null, stage = WalkInOrderStage.Idle)
-    }
-
-    fun resetState() {
+    fun cancelOrder() {
+        submitJob?.cancel()
+        submitJob = null
         _uiState.value = WalkInOrderUiState()
     }
 
+    fun resetState() {
+        submitJob?.cancel()
+        submitJob = null
+        _uiState.value = WalkInOrderUiState()
+    }
+
+    fun clearError() {
+        submitJob?.cancel()
+        submitJob = null
+        _uiState.value = _uiState.value.copy(error = null, stage = WalkInOrderStage.Idle)
+    }
+
     fun submitOrder(onPaymentRequired: (String, Int) -> Unit) {
-        viewModelScope.launch {
+        submitJob = viewModelScope.launch {
             val state = _uiState.value
 
             val file = state.selectedFile ?: run {
@@ -223,7 +186,7 @@ class WalkInOrderViewModel(
             val orderId = (orderResult as Result.Success).data.id
             currentOrderId = orderId
 
-            /* 2️⃣ UPLOAD FILE — pass resolved MIME type so backend gets correct Content-Type */
+            /* 2️⃣ UPLOAD FILE */
             _uiState.value = _uiState.value.copy(
                 stage = WalkInOrderStage.UploadingFile,
                 uploadProgress = 0
@@ -231,7 +194,7 @@ class WalkInOrderViewModel(
 
             val uploadResult = orderRepository.uploadFile(
                 file = file,
-                mimeType = state.selectedFileMimeType,  // ← THE FIX
+                mimeType = state.selectedFileMimeType,
                 onProgress = { percent ->
                     _uiState.value = _uiState.value.copy(uploadProgress = percent)
                 }
@@ -326,17 +289,16 @@ class WalkInOrderViewModel(
     }
 
     fun setPaymentCancelled() {
-        _uiState.value = _uiState.value.copy(
-            stage = WalkInOrderStage.Idle,
-            error = "Payment cancelled"
-        )
+        if (_uiState.value.stage != WalkInOrderStage.Idle) {
+            _uiState.value = _uiState.value.copy(
+                stage = WalkInOrderStage.Idle,
+                error = "Payment cancelled"
+            )
+        }
     }
-
-    /* ---------------- PRIVATE HELPERS ---------------- */
 
     private fun normaliseMime(mime: String): String = when (mime.lowercase().trim()) {
-        "image/jpg", "image/JPEG" -> "image/jpeg"
+        "image/jpg", "image/jpeg" -> "image/jpeg"
         else -> mime
     }
-
 }
