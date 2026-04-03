@@ -43,11 +43,11 @@ class AuthRepository(
             val body = response.body()
                 ?: return Result.Error("Empty server response")
 
-            val token = body.data.session.access_token
-            Log.d("AUTH", "SAVING TOKEN = $token")
+            val accessToken = body.data.session.access_token
+            val refreshToken = body.data.session.refresh_token
 
-            // ✅ SAVE TOKEN
-            tokenManager.saveToken(token)
+            tokenManager.saveToken(accessToken)
+            tokenManager.saveRefreshToken(refreshToken)
 
             tokenManager.saveUserInfo(
                 userId = body.data.user.id,

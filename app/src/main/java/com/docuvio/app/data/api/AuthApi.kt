@@ -14,5 +14,8 @@ interface AuthApi {
     @GET("auth/organisations")
     suspend fun getOrganisations(): Response<OrganisationResponse>
 
-
+    @POST("auth/refresh")
+    fun refreshToken(
+        @Body request: RefreshTokenRequest
+    ): retrofit2.Call<RefreshTokenResponse>
 }

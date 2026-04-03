@@ -58,8 +58,65 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import android.view.View // 🔥 ADD THIS
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.InstallStatus
+import com.google.android.play.core.install.model.UpdateAvailability
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
+    private lateinit var appUpdateManager: AppUpdateManager
+
+    // 🔥 ADD THESE FUNCTIONS
+    fun enableEdgeToEdge() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Cream.toArgb()
+        window.navigationBarColor = Color.Transparent.toArgb()
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = false
+        }
+    }
+
+
+    fun prepareWindowForRazorpay(onReady: () -> Unit) {
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = Color.White.toArgb()
+
+        // Wait for window to re-layout BEFORE opening Razorpay
+        window.decorView.post {
+            window.decorView.post {  // double post = next-next frame, fully laid out
+                onReady()
+            }
+        }
+    }
+    private fun checkForAppUpdate() {
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+
+            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                && info.isUpdateTypeAllowed(AppUpdateType.FLEXIBLE)
+            ) {
+                appUpdateManager.startUpdateFlowForResult(
+                    info,
+                    AppUpdateType.FLEXIBLE,
+                    this,
+                    101
+                )
+            }
+        }
+    }
+    override fun onResume() {
+        super.onResume()
+
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { info ->
+            if (info.installStatus() == InstallStatus.DOWNLOADED) {
+                appUpdateManager.completeUpdate()
+            }
+        }
+    }
 
     private val notificationPermissionLauncher =
         registerForActivityResult(
@@ -74,16 +131,28 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         requestNotificationPermissionFirstLaunch()
 
         Checkout.preload(applicationContext)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // 🔥 KEEP THIS (your normal UI)
+        enableEdgeToEdge()
+
+        appUpdateManager = AppUpdateManagerFactory.create(this)
+        checkForAppUpdate()
+
+        appUpdateManager.registerListener { state ->
+            if (state.installStatus() == InstallStatus.DOWNLOADED) {
+                runOnUiThread {
+                    android.widget.Toast.makeText(
+                        this,
+                        "Update downloaded. Restarting...",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+
+                    appUpdateManager.completeUpdate()
+                }
+            }
+        }
 
         FirebaseMessaging.getInstance().token
-            .addOnCompleteListener { task ->
-                if (!task.isSuccessful) {
-                    return@addOnCompleteListener
-                }
-                val token = task.result
-                // FCM token logging removed for security
-            }
 
         setContent {
             LovelyPrintsTheme {
@@ -92,15 +161,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
                 val navController = rememberNavController()
 
-                var showTerms by rememberSaveable {
-                    mutableStateOf(true)
-                }
-
-                // Small loading state to bridge the gap between Terms and Home
+                var showTerms by rememberSaveable { mutableStateOf(true) }
                 var isTransitioning by remember { mutableStateOf(false) }
 
                 Box {
-
                     MainScreen(navController) { padding ->
                         AppNavHost(
                             navController = navController,
@@ -112,20 +176,17 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
                     if (showTerms) {
                         TermsScreen(
-                            onAccept = { 
+                            onAccept = {
                                 isTransitioning = true
-                                showTerms = false 
+                                showTerms = false
                             }
                         )
                     }
 
-                    // Loading overlay for transition
-                    // Replace the entire AnimatedVisibility loading overlay block with this:
-
                     AnimatedVisibility(
                         visible = isTransitioning,
-                        enter = fadeIn(tween(300)),
-                        exit = fadeOut(tween(500))
+                        enter = fadeIn(),
+                        exit = fadeOut()
                     ) {
                         Box(
                             modifier = Modifier
@@ -137,7 +198,6 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         }
                     }
 
-                    // Hide loading overlay after Home screen likely has started loading
                     if (isTransitioning) {
                         LaunchedEffect(Unit) {
                             kotlinx.coroutines.delay(1000)
@@ -156,9 +216,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         val alreadyAsked = prefs.getBoolean("notification_permission_asked", false)
         if (alreadyAsked) return
 
-        prefs.edit()
-            .putBoolean("notification_permission_asked", true)
-            .apply()
+        prefs.edit().putBoolean("notification_permission_asked", true).apply()
 
         val granted = ContextCompat.checkSelfPermission(
             this,
@@ -178,6 +236,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         razorpayPaymentId: String?,
         paymentData: PaymentData?
     ) {
+        // 🔥 RESTORE EDGE TO EDGE
+        enableEdgeToEdge()
+
         val orderId = paymentData?.orderId ?: return
         val paymentId = paymentData.paymentId ?: return
         val signature = paymentData.signature ?: return
@@ -191,6 +252,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         description: String?,
         paymentData: PaymentData?
     ) {
+        // 🔥 RESTORE EDGE TO EDGE
+        enableEdgeToEdge()
+
         if (code == 0) {
             RazorpayHolder.result = RazorpayResult(
                 orderId = paymentData?.orderId ?: "",
@@ -330,4 +394,5 @@ fun DocuvioLoadingAnimation() {
             }
         }
     }
+
 }

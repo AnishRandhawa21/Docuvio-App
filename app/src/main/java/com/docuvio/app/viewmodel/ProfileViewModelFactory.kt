@@ -5,8 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import com.docuvio.app.data.repository.AuthRepository
 
 class ProfileViewModelFactory(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
 ) : ViewModelProvider.Factory {
+
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ProfileViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

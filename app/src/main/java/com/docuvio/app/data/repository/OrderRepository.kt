@@ -249,7 +249,7 @@ class OrderRepository(
             is UnknownHostException  -> "No internet connection."
             is SocketTimeoutException -> "Connection timed out. Please try again."
             is IOException           -> "Network error. Please check your connection."
-            else                     -> "Something went wrong. Please try again."
+            else                     -> "please Wait.."
         }
     }
 }

@@ -116,4 +116,15 @@ class TokenManager(private val context: Context) {
     fun getTokenExpiryBlocking(): Long? = runBlocking {
         context.dataStore.data.first()[TOKEN_EXPIRY_KEY]?.toLongOrNull()
     }
+    private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
+
+    suspend fun saveRefreshToken(token: String) {
+        context.dataStore.edit {
+            it[REFRESH_TOKEN_KEY] = token
+        }
+    }
+
+    fun getRefreshTokenBlocking(): String? = runBlocking {
+        context.dataStore.data.first()[REFRESH_TOKEN_KEY]
+    }
 }

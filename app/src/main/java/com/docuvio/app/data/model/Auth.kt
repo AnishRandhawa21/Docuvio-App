@@ -28,7 +28,8 @@ data class LoginData(
 )
 
 data class Session(
-    val access_token: String
+    val access_token: String,
+    val refresh_token: String
 )
 
 // ---------- USER ----------
@@ -43,12 +44,20 @@ data class UserMetadata(
     val role: String,
     val name: String? = null
 )
-
 data class OrganisationResponse(
     val data: List<Organisation>
 )
-
 data class Organisation(
     val id: String,
     val name: String
+)
+data class RefreshTokenRequest(
+    val refresh_token: String
+)
+data class RefreshTokenResponse(
+    val data: SessionData
+)
+data class SessionData(
+    val access_token: String,
+    val refresh_token: String
 )

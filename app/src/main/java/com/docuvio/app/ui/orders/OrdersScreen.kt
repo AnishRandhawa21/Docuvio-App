@@ -67,6 +67,10 @@ fun OrdersScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.loadOrders(force = true)
+    }
+
     val pullToRefreshState = rememberPullToRefreshState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -579,53 +583,40 @@ fun PaymentStatusChip(status: String) {
 
 @Composable
 fun SkeletonOrderCard() {
-
     val shimmer = rememberShimmerBrush()
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(110.dp),
+        modifier = Modifier.fillMaxWidth().height(110.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = OffWhite // CHANGED: from Color(0xFF1E1E1E) to Color.White
-        ),
-        elevation = CardDefaults.cardElevation(0.dp) // CHANGED: Added elevation
+        colors = CardDefaults.cardColors(containerColor = OffWhite),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(16.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                // Left: order no + ID + shop name + date
+                Column {
+                    Box(modifier = Modifier.height(18.dp).fillMaxWidth(0.45f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                    Spacer(Modifier.height(8.dp))
+                    Box(modifier = Modifier.height(13.dp).fillMaxWidth(0.3f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                    Spacer(Modifier.height(8.dp))
+                    Box(modifier = Modifier.height(13.dp).fillMaxWidth(0.4f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                }
 
-            Column {
+                // Right: status chip
                 Box(
                     modifier = Modifier
-                        .height(18.dp)
-                        .fillMaxWidth(0.5f)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(shimmer)
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                Box(
-                    modifier = Modifier
-                        .height(14.dp)
-                        .fillMaxWidth(0.35f)
-                        .clip(RoundedCornerShape(6.dp))
+                        .height(24.dp)
+                        .width(80.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(shimmer)
                 )
             }
-
-            Box(
-                modifier = Modifier
-                    .height(24.dp)
-                    .width(80.dp)
-                    .align(Alignment.TopEnd)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(shimmer)
-            )
         }
     }
 }

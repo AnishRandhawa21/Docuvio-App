@@ -2,6 +2,7 @@
 
 package com.docuvio.app.ui.navigation
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -37,6 +38,7 @@ import com.docuvio.app.ui.profile.FeedbackScreen
 import com.docuvio.app.theme.Cream
 
 import android.app.Activity
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -109,6 +111,7 @@ private fun tabEnter(fromRoute: String?, toRoute: String?) =
         ) + fadeIn(animationSpec = tween(260, easing = EaseOut))
     }
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AppNavHost(
@@ -219,8 +222,12 @@ fun AppNavHost(
             }
         ) { backStackEntry ->
 
+            val parentEntry = remember(navController) {
+                navController.getBackStackEntry(Routes.Home.route)
+            }
+
             val viewModel: HomeViewModel = viewModel(
-                backStackEntry,
+                parentEntry,
                 factory = HomeViewModelFactory(appContainer.shopRepository)
             )
 
@@ -253,8 +260,12 @@ fun AppNavHost(
             }
         ) { backStackEntry ->
 
+            val parentEntry = remember(navController) {
+                navController.getBackStackEntry(Routes.Orders.route)
+            }
+
             val viewModel: OrdersViewModel = viewModel(
-                backStackEntry,
+                parentEntry,
                 factory = OrdersViewModelFactory(appContainer.orderRepository)
             )
 

@@ -225,7 +225,7 @@ private fun FormView(
                 color = AlmostBlack
             )
             Text(
-                "Upload document (PDF, PNG, JPG)",
+                "Upload document (PDF, PNG, JPG, DOCX)",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MediumGray,
                 modifier = Modifier.padding(top = 4.dp)
@@ -273,7 +273,7 @@ private fun FormView(
                             )
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                "Converting DOCX → PDF…",
+                                "Converting DOCX → PDF",
                                 color = DarkBlue,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp

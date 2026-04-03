@@ -24,14 +24,10 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    init {
-        loadShops()
-    }
+    fun loadShops(force: Boolean = false) {
 
-    fun loadShops() {
-
-        // prevent duplicate calls
-        if (_uiState.value.shops.isNotEmpty()) return
+        // ✅ Don't reload if already loaded
+        if (!force && _uiState.value.shops.isNotEmpty()) return
 
         viewModelScope.launch {
 

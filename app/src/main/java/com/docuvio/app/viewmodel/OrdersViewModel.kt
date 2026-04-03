@@ -36,9 +36,10 @@ class OrdersViewModel(
     /**
      * Load orders for current logged-in user
      */
-    fun loadOrders() {
+    fun loadOrders(force: Boolean = false) {
 
-        // ⛔ Cancel previous job if still running and start new one
+        if (!force && _uiState.value.currentOrders.isNotEmpty()) return
+
         loadJob?.cancel()
 
         loadJob = viewModelScope.launch {
@@ -51,26 +52,22 @@ class OrdersViewModel(
 
                     val allOrders = result.data.data
 
-                    val currentOrders =
-                        allOrders.filter { order ->
-                            !order.isExpired &&
-                                    !order.status.equals("completed", true) &&
-                                    !order.status.equals("cancelled", true)
-                        }
+                    val currentOrders = allOrders.filter {
+                        !it.isExpired &&
+                                !it.status.equals("completed", true) &&
+                                !it.status.equals("cancelled", true)
+                    }
 
-                    val historyOrders =
-                        allOrders.filter { order ->
-                            order.isExpired ||
-                                    order.status.equals("completed", true) ||
-                                    order.status.equals("cancelled", true)
-                        }
-
+                    val historyOrders = allOrders.filter {
+                        it.isExpired ||
+                                it.status.equals("completed", true) ||
+                                it.status.equals("cancelled", true)
+                    }
 
                     _uiState.value = OrdersUiState(
                         currentOrders = currentOrders,
                         orderHistory = historyOrders,
-                        isLoading = false,
-                        error = null
+                        isLoading = false
                     )
                 }
 

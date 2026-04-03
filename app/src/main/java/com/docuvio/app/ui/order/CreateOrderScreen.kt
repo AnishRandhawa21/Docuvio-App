@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.util.Log
+import android.view.View
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -63,6 +65,9 @@ import androidx.compose.material.icons.outlined.StayCurrentLandscape
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.view.WindowCompat
+import com.docuvio.app.MainActivity
 
 private val PROCESSING_STEPS = setOf(
     OrderStep.CREATING_ORDER,
@@ -1589,21 +1594,50 @@ fun startRazorpayPayment(
     amount: Int,
     onError: (String) -> Unit
 ) {
-    try {
-        val checkout = Checkout()
-        checkout.setKeyID(BuildConfig.RAZORPAY_KEY_ID)
-        val options = JSONObject().apply {
-            put("name", "Docuvio")
-            put("description", "Print Order Payment")
-            put("order_id", razorpayOrderId)
-            put("currency", "INR")
-            put("amount", amount)
-            put("theme.color", "#FFBF5E7")
+    if (activity is MainActivity) {
+        activity.prepareWindowForRazorpay {
+            try {
+                val checkout = Checkout()
+                checkout.setKeyID(BuildConfig.RAZORPAY_KEY_ID)
+
+                val options = JSONObject().apply {
+                    put("name", "Docuvio")
+                    put("description", "Print Order Payment")
+                    put("order_id", razorpayOrderId)
+                    put("currency", "INR")
+                    put("amount", amount * 100)
+                    put("theme.color", "#FFFBF5E7")
+                }
+
+                checkout.open(activity, options)
+
+            } catch (e: Exception) {
+                Log.e("RAZORPAY_DEBUG", "Error opening Razorpay", e)
+                activity.enableEdgeToEdge()
+                onError(e.message ?: "Payment initialization failed")
+            }
         }
-        checkout.open(activity, options)
-    } catch (e: Exception) {
-        Log.e("RAZORPAY", "Error opening Razorpay", e)
-        onError(e.message ?: "Payment initialization failed")
+    } else {
+        // Fallback if somehow not MainActivity
+        try {
+            val checkout = Checkout()
+            checkout.setKeyID(BuildConfig.RAZORPAY_KEY_ID)
+
+            val options = JSONObject().apply {
+                put("name", "Docuvio")
+                put("description", "Print Order Payment")
+                put("order_id", razorpayOrderId)
+                put("currency", "INR")
+                put("amount", amount * 100)
+                put("theme.color", "#FFFBF5E7")
+            }
+
+            checkout.open(activity, options)
+
+        } catch (e: Exception) {
+            Log.e("RAZORPAY_DEBUG", "Error opening Razorpay", e)
+            onError(e.message ?: "Payment initialization failed")
+        }
     }
 }
 

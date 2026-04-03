@@ -3,6 +3,7 @@ package com.docuvio.app.core.network
 
 import com.docuvio.app.BuildConfig
 import com.docuvio.app.core.auth.TokenManager
+import com.docuvio.app.data.api.AuthApi
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -12,25 +13,27 @@ import java.util.concurrent.TimeUnit
 
 class ApiClient(
     private val tokenManager: TokenManager,
+    private val authApi: AuthApi?,
     private val onUnauthorized: () -> Unit
 ) {
 
     private val authInterceptor = Interceptor { chain ->
+        val request = chain.request()
+
+        // 🔥 Skip refresh endpoint
+        if (request.url.encodedPath.endsWith("/auth/refresh")) {
+            return@Interceptor chain.proceed(request)
+        }
+
         val token = tokenManager.getTokenBlocking()
 
-        val request = chain.request().newBuilder().apply {
+        val newRequest = request.newBuilder().apply {
             if (!token.isNullOrBlank()) {
                 addHeader("Authorization", "Bearer $token")
             }
         }.build()
 
-        val response = chain.proceed(request)
-
-        if (response.code == 401) {
-            onUnauthorized()
-        }
-
-        response
+        chain.proceed(newRequest)
     }
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -42,10 +45,12 @@ class ApiClient(
 
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        .apply {
+            authApi?.let {
+                authenticator(AuthAuthenticator(tokenManager, it))
+            }
+        }
         .addInterceptor(loggingInterceptor)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
     private val retrofit: Retrofit = Retrofit.Builder()

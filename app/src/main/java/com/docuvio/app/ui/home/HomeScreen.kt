@@ -31,6 +31,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.firebase.registerFcmToken
@@ -55,14 +56,12 @@ fun HomeScreen(
     onScheduleClick: (String) -> Unit,
     onOrderNowClick: (String) -> Unit
 ){
-
-    LaunchedEffect(Unit) {
-        val userId = tokenManager.getUserIdBlocking()
-        if (!userId.isNullOrBlank()) {
-            registerFcmToken(userId, notificationApi)
-        }
-    }
     val uiState by viewModel.uiState.collectAsState()
+    // ✅ ADD THIS HERE
+    LaunchedEffect(Unit) {
+        viewModel.loadShops()
+    }
+
     val pullToRefreshState = rememberPullToRefreshState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -388,11 +387,17 @@ fun rememberShimmerBrush(): Brush {
     val x by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1000f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 1200, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing)
+        ),
         label = "x"
     )
     return Brush.linearGradient(
-        colors = listOf(MediumGray.copy(alpha = 0.5f), OffWhite.copy(alpha = 0.2f), MediumGray.copy(alpha = 0.5f)),
+        colors = listOf(
+            MediumGray.copy(alpha = 0.6f),   // base — darker
+            OffWhite.copy(alpha = 0.95f),     // peak — near opaque white
+            MediumGray.copy(alpha = 0.6f),   // base — darker
+        ),
         start = Offset(x - 300f, 0f),
         end = Offset(x, 600f)
     )
