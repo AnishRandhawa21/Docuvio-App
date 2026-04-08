@@ -66,19 +66,16 @@ import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.InstallStatus
 import com.google.android.play.core.install.model.UpdateAvailability
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     private lateinit var appUpdateManager: AppUpdateManager
-
-    // 🔥 ADD THESE FUNCTIONS
-    fun enableEdgeToEdge() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = Cream.toArgb()
-        window.navigationBarColor = Color.Transparent.toArgb()
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            isAppearanceLightStatusBars = true
-            isAppearanceLightNavigationBars = false
-        }
+    fun enableEdgeToEdgeSafe() {
+        enableEdgeToEdge() // official API
     }
 
 
@@ -133,7 +130,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         Checkout.preload(applicationContext)
 
         // 🔥 KEEP THIS (your normal UI)
-        enableEdgeToEdge()
+        enableEdgeToEdgeSafe()
 
         appUpdateManager = AppUpdateManagerFactory.create(this)
         checkForAppUpdate()
@@ -157,9 +154,11 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         setContent {
             LovelyPrintsTheme {
 
-                FixSystemBars(enabled = true)
-
                 val navController = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                FixSystemBars(route = currentRoute)
 
                 var showTerms by rememberSaveable { mutableStateOf(true) }
                 var isTransitioning by remember { mutableStateOf(false) }
@@ -237,7 +236,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         paymentData: PaymentData?
     ) {
         // 🔥 RESTORE EDGE TO EDGE
-        enableEdgeToEdge()
+        enableEdgeToEdgeSafe()
 
         val orderId = paymentData?.orderId ?: return
         val paymentId = paymentData.paymentId ?: return
@@ -253,7 +252,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         paymentData: PaymentData?
     ) {
         // 🔥 RESTORE EDGE TO EDGE
-        enableEdgeToEdge()
+        enableEdgeToEdgeSafe()
 
         if (code == 0) {
             RazorpayHolder.result = RazorpayResult(
@@ -281,28 +280,37 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 /* -------------------------------------------------- */
 
 @Composable
-fun FixSystemBars(enabled: Boolean) {
+fun FixSystemBars(route: String?) {
 
     val view = LocalView.current
 
-    SideEffect {
-        if (!enabled) return@SideEffect
+    DisposableEffect(route) {
 
         val window = (view.context as Activity).window
 
-        // Status bar → Cream with dark icons
-        window.statusBarColor = Cream.toArgb()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // Navigation bar → transparent so the floating bottom nav
-        // draws correctly over the edge-to-edge content.
-        // The Scaffold's navigationBarsPadding() handles the spacing.
-        window.navigationBarColor = Color.Transparent.toArgb()
+        val controller = WindowCompat.getInsetsController(window, view)
 
-        WindowCompat.getInsetsController(window, view).apply {
-            isAppearanceLightStatusBars = true   // dark icons on cream
-            isAppearanceLightNavigationBars = false // light icons on dark/transparent nav bar
+        // 🔥Top bar Icon Changer
+        controller.isAppearanceLightStatusBars = true
+        controller.isAppearanceLightNavigationBars = true
+
+        // 🔥 EXTRA FORCE (handles dialog override)
+        window.decorView.post {
+            controller.isAppearanceLightStatusBars = true
         }
+
+        onDispose { }
     }
+
+    // Black status bar background
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+            .background(Color.Black)
+    )
 }
 
 @Composable

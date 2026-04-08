@@ -1627,7 +1627,7 @@ fun startRazorpayPayment(
 
             } catch (e: Exception) {
                 Log.e("RAZORPAY_DEBUG", "Error opening Razorpay", e)
-                activity.enableEdgeToEdge()
+                activity.enableEdgeToEdgeSafe()
                 onError(e.message ?: "Payment initialization failed")
             }
         }

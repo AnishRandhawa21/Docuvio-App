@@ -99,14 +99,6 @@ fun ProfileScreen(
         )
     }
     val activity = LocalContext.current as Activity
-    val window = activity.window
-
-    SideEffect {
-        window.statusBarColor = Cream.toArgb()
-
-        WindowCompat.getInsetsController(window, window.decorView)
-            .isAppearanceLightStatusBars = true
-    }
 
     Box(
         modifier = Modifier
