@@ -15,8 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -28,14 +31,44 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private val ThumbSize      = 48.dp
-private val TrackPadding   = 6.dp
-private val TrackHeight    = 58.dp
-private val ThumbColorIdle = Color(0xFF8FD16B)
-private val ThumbColorDone = Color(0xFF5AB348)
-private val FillColor      = Color(0xFF6BBF4E)
-private val CardColor      = Color(0xFF1C1C1E)
-private val TrackBgColor   = Color(0xFF2C2C2E)
+// ── Dimensions ─────────────────────────────────────────────────────────────
+private val WalkInThumbSize    = 40.dp
+private val WalkInTrackPadding = 4.dp
+private val WalkInTrackHeight  = 48.dp
+
+// ── Green thumb / fill (unchanged) ─────────────────────────────────────────
+private val WalkInThumbTop  = Color(0xFF8FD16B)
+private val WalkInThumbBot  = Color(0xFF5AB348)
+private val WalkInFillColor = Color(0xFF6BBF4E)
+
+// ── Dark glass palette (same as FloatingPayBar) ─────────────────────────────
+private val WalkInCardBg           = Color(0xF7111111)
+private val WalkInCardTopShimmer   = Color(0x22FFFFFF)
+private val WalkInCardBorderBright = Color(0x33FFFFFF)
+private val WalkInCardBorderSide   = Color(0x14FFFFFF)
+
+private val WalkInTrackBg          = Color(0x1AFFFFFF)
+private val WalkInTrackBorderColor = Color(0x22FFFFFF)
+
+// ── Text ────────────────────────────────────────────────────────────────────
+private val WalkInTextStrong = Color(0xFFFFFFFF)
+private val WalkInTextMedium = Color(0xBFFFFFFF)
+private val WalkInTextSoft   = Color(0x66FFFFFF)
+
+private fun Modifier.walkInGlassRim(cornerPx: Float): Modifier = drawBehind {
+    val stroke = 1.dp.toPx()
+    val cr = CornerRadius(cornerPx)
+    drawRoundRect(color = WalkInCardBorderSide, cornerRadius = cr, style = Stroke(width = stroke))
+    drawRoundRect(
+        brush = Brush.horizontalGradient(
+            colors = listOf(Color.Transparent, WalkInCardBorderBright, WalkInCardBorderBright, Color.Transparent),
+            startX = size.width * 0.10f,
+            endX   = size.width * 0.90f
+        ),
+        cornerRadius = cr,
+        style = Stroke(width = stroke)
+    )
+}
 
 /* ─────────────────────────────────────────────────────────
    WalkInFloatingPayBar
@@ -73,6 +106,9 @@ fun WalkInFloatingPayBar(
         }
     }
 
+    val corner   = 22.dp
+    val cornerPx = with(LocalDensity.current) { corner.toPx() }
+
     // Overlay anchored to bottom of the parent Surface Box
     Box(
         modifier = Modifier
@@ -82,61 +118,67 @@ fun WalkInFloatingPayBar(
             .padding(bottom = 12.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp)
                 .offset { IntOffset(shakeOffset.value.roundToInt(), 0) }
-                .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(20.dp),
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.35f),
-                    spotColor = Color.Black.copy(alpha = 0.35f)
-                )
-                .clip(RoundedCornerShape(20.dp))
-                .background(CardColor)
-                .padding(10.dp)
-        ) {
-            Column {
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Column {
-                        Text(
-                            text = "$pageCount pages",
-                            color = Color(0xFFB0B0B0), // or MediumGray
-                            fontSize = 13.sp
+                // ── Dark frosted glass ──────────────────────────────────
+                // Add on API 31+ for real blur-behind:
+                //   .graphicsLayer {
+                //       renderEffect = BlurEffect(20f, 20f, TileMode.Clamp)
+                //   }
+                .clip(RoundedCornerShape(corner))
+                .background(WalkInCardBg)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.03f),
+                            Color.Transparent
                         )
-
-                        Text(
-                            text = "Incl. convenience fee",
-                            color = Color(0xFFB0B0B0),
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Text(
-                        text = "₹ $total",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
                     )
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                WalkInSwipeToPayButton(
-                    enabled = isEnabled,
-                    onSwiped = onSubmit,
-                    onAttemptedWhenDisabled = ::triggerShake,
-                    modifier = Modifier.fillMaxWidth()
+                )
+                .walkInGlassRim(cornerPx)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Left — page count + fee label
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.wrapContentWidth()
+            ) {
+                Text(
+                    text = "$pageCount pages",
+                    color = WalkInTextMedium,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.1.sp
+                )
+                Text(
+                    text = "incl. conv. fee",
+                    color = WalkInTextSoft,
+                    fontSize = 10.sp
                 )
             }
+
+            // Centre — amount
+            Text(
+                text = "₹ $total",
+                color = WalkInTextStrong,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+                modifier = Modifier.wrapContentWidth()
+            )
+
+            // Right — swipe track
+            WalkInSwipeToPayButton(
+                enabled = isEnabled,
+                onSwiped = onSubmit,
+                onAttemptedWhenDisabled = ::triggerShake,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -152,8 +194,8 @@ private fun WalkInSwipeToPayButton(
     val scope   = rememberCoroutineScope()
 
     var trackWidthPx by remember { mutableFloatStateOf(0f) }
-    val thumbSizePx  = with(density) { ThumbSize.toPx() }
-    val paddingPx    = with(density) { TrackPadding.toPx() }
+    val thumbSizePx  = with(density) { WalkInThumbSize.toPx() }
+    val paddingPx    = with(density) { WalkInTrackPadding.toPx() }
     val maxOffsetPx  = (trackWidthPx - thumbSizePx - paddingPx * 2).coerceAtLeast(0f)
 
     var completed      by remember { mutableStateOf(false) }
@@ -190,32 +232,44 @@ private fun WalkInSwipeToPayButton(
     val progress = if (maxOffsetPx > 0f)
         (animatedOffset.value / maxOffsetPx).coerceIn(0f, 1f) else 0f
 
-    val thumbColor = when {
-        completed -> ThumbColorDone
-        !enabled  -> ThumbColorIdle.copy(alpha = 0.45f)
-        else      -> ThumbColorIdle
-    }
+    val thumbBrush = if (!enabled)
+        Brush.verticalGradient(listOf(WalkInThumbTop.copy(alpha = 0.4f), WalkInThumbBot.copy(alpha = 0.4f)))
+    else
+        Brush.verticalGradient(listOf(WalkInThumbTop, WalkInThumbBot))
 
     Box(
         modifier = modifier
-            .height(TrackHeight)
+            .height(WalkInTrackHeight)
             .clip(RoundedCornerShape(999.dp))
-            .background(TrackBgColor)
+            .background(WalkInTrackBg)
+            .drawBehind {
+                drawRoundRect(
+                    color = WalkInTrackBorderColor,
+                    cornerRadius = CornerRadius(size.height / 2f),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
             .onGloballyPositioned { trackWidthPx = it.size.width.toFloat() },
         contentAlignment = Alignment.CenterStart
     ) {
-
-        // Green fill
+        // Green fill sweep
         if (maxOffsetPx > 0f && enabled) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(
-                        ThumbSize + TrackPadding + TrackPadding +
+                        WalkInThumbSize + WalkInTrackPadding + WalkInTrackPadding +
                                 with(density) { animatedOffset.value.toDp() }
                     )
                     .clip(RoundedCornerShape(999.dp))
-                    .background(FillColor)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                WalkInFillColor.copy(alpha = 0.6f),
+                                WalkInFillColor.copy(alpha = 0.15f)
+                            )
+                        )
+                    )
             )
         }
 
@@ -230,43 +284,46 @@ private fun WalkInSwipeToPayButton(
                 }
             ),
             fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            modifier = Modifier.align(Alignment.Center)
+            fontSize = 13.sp,
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(start = WalkInThumbSize + WalkInTrackPadding + 4.dp, end = 8.dp)
         )
 
         // Pulsing arrows — anchored to right edge, not left
-        if (!completed) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)  // ← right side
-                    .padding(end = 16.dp),       // ← right padding
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                listOf(arrowAlpha1, arrowAlpha2, arrowAlpha3).forEach { alpha ->
-                    val effectiveAlpha = if (!enabled) {
-                        alpha * 0.3f
-                    } else {
-                        (alpha * (1f - progress * 2.5f)).coerceIn(0f, 1f)
-                    }
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = effectiveAlpha),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
+//        if (!completed) {
+//            Row(
+//                modifier = Modifier
+//                    .align(Alignment.CenterEnd)
+//                    .padding(end = 16.dp),
+//                verticalAlignment = Alignment.CenterVertically,
+//                horizontalArrangement = Arrangement.spacedBy(2.dp)
+//            ) {
+//                listOf(arrowAlpha1, arrowAlpha2, arrowAlpha3).forEach { alpha ->
+//                    val effectiveAlpha = if (!enabled) {
+//                        alpha * 0.3f
+//                    } else {
+//                        (alpha * (1f - progress * 2.5f)).coerceIn(0f, 1f)
+//                    }
+//                    Icon(
+//                        imageVector = Icons.Default.ArrowForward,
+//                        contentDescription = null,
+//                        tint = Color.White.copy(alpha = effectiveAlpha),
+//                        modifier = Modifier.size(16.dp)
+//                    )
+//                }
+//            }
+//        }
 
         // Draggable thumb
         Box(
             modifier = Modifier
-                .padding(start = TrackPadding)
+                .padding(start = WalkInTrackPadding)
                 .offset { IntOffset(animatedOffset.value.roundToInt(), 0) }
-                .size(ThumbSize)
+                .size(WalkInThumbSize)
                 .clip(CircleShape)
-                .background(thumbColor)
+                .background(thumbBrush)
                 .pointerInput(enabled, completed, maxOffsetPx) {
                     detectHorizontalDragGestures(
                         onDragEnd = {

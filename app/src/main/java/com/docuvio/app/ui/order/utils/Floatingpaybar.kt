@@ -15,8 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -24,21 +30,53 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.docuvio.app.theme.MediumGray
 import com.docuvio.app.ui.order.utils.PricingUtils.calculateTotal
 import com.docuvio.app.viewmodel.CreateOrderUiState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private val ThumbSize      = 48.dp
-private val TrackPadding   = 6.dp
-private val TrackHeight    = 58.dp
-private val ThumbColorIdle = Color(0xFF8FD16B)
-private val ThumbColorDone = Color(0xFF5AB348)
-private val FillColor      = Color(0xFF6BBF4E)
-private val CardColor      = Color(0xFF1C1C1E)
-private val TrackBgColor   = Color(0xFF2C2C2E)
+// ── Dimensions ─────────────────────────────────────────────────────────────
+private val ThumbSize    = 40.dp
+private val TrackPadding = 4.dp
+private val TrackHeight  = 48.dp
+
+// ── Green thumb / fill (unchanged) ─────────────────────────────────────────
+private val ThumbTop  = Color(0xFF8FD16B)
+private val ThumbBot  = Color(0xFF5AB348)
+private val FillColor = Color(0xFF6BBF4E)
+
+// ── Dark glass palette ──────────────────────────────────────────────────────
+//private val CardBg           = Color(0xCC111111)   // ~80 % opaque near-black
+private val CardBg = Color(0xF7111111)
+private val CardTopShimmer   = Color(0x22FFFFFF)   // faint inner glow at top
+private val CardBorderBright = Color(0x33FFFFFF)   // lit top rim
+private val CardBorderSide   = Color(0x14FFFFFF)   // subtle sides/bottom
+
+private val TrackBg          = Color(0x1AFFFFFF)   // dim white pill on dark card
+private val TrackBorderColor = Color(0x22FFFFFF)
+
+// ── Text — white on dark ────────────────────────────────────────────────────
+private val TextStrong  = Color(0xFFFFFFFF)
+private val TextMedium  = Color(0xBFFFFFFF)   // 75 % white
+private val TextSoft    = Color(0x66FFFFFF)   // 40 % white
+
+
+
+private fun Modifier.glassRim(cornerPx: Float): Modifier = drawBehind {
+    val stroke = 1.dp.toPx()
+    val cr = CornerRadius(cornerPx)
+    drawRoundRect(color = CardBorderSide, cornerRadius = cr, style = Stroke(width = stroke))
+    drawRoundRect(
+        brush = Brush.horizontalGradient(
+            colors = listOf(Color.Transparent, CardBorderBright, CardBorderBright, Color.Transparent),
+            startX = size.width * 0.10f,
+            endX   = size.width * 0.90f
+        ),
+        cornerRadius = cr,
+        style = Stroke(width = stroke)
+    )
+}
 
 @Composable
 fun FloatingPayBar(
@@ -62,67 +100,73 @@ fun FloatingPayBar(
     }
 
     val total = calculateTotal(uiState)
+    val corner   = 22.dp
+    val cornerPx = with(LocalDensity.current) { corner.toPx() }
 
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
                 .offset { IntOffset(shakeOffset.value.roundToInt(), 0) }
-                .shadow(
-                    elevation = 32.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.4f),
-                    spotColor = Color.Black.copy(alpha = 0.4f)
-                )
-                .clip(RoundedCornerShape(24.dp))
-                .background(CardColor)
-                .padding(horizontal = 16.dp)
-                .padding(top = 10.dp, bottom = 10.dp)
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Column {
-                        Text(
-                            text = "Total ${uiState.pageCount ?: 0} pages",
-                            color = Color(0xFFB0B0B0), // or MediumGray
-                            fontSize = 13.sp
+//                   .graphicsLayer {
+//                       renderEffect = BlurEffect(20f, 20f, TileMode.Clamp)
+//                   }
+                .clip(RoundedCornerShape(corner))
+                .background(CardBg)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.03f),
+                            Color.Transparent
                         )
-
-                        Text(
-                            text = "Incl. Platform Fee",
-                            color = Color(0xFFB0B0B0),
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    Text(
-                        text = "₹ $total",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
                     )
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                SwipeToPayButton(
-                    enabled = isEnabled,
-                    onSwiped = onSubmit,
-                    onAttemptedWhenDisabled = ::triggerShake,
-                    modifier = Modifier.fillMaxWidth()
+                )
+                .glassRim(cornerPx)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Left — page count + fee label
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.wrapContentWidth()
+            ) {
+                Text(
+                    text = "Total ${uiState.pageCount ?: 0} pages",
+                    color = TextMedium,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.1.sp
+                )
+                Text(
+                    text = "Fees Incl.",
+                    color = TextSoft,
+                    fontSize = 10.sp
                 )
             }
+
+            // Centre — amount
+            Text(
+                text = "₹$total",
+                color = TextStrong,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
+                modifier = Modifier.wrapContentWidth()
+            )
+
+            // Right — swipe track
+            SwipeToPayButton(
+                enabled = isEnabled,
+                onSwiped = onSubmit,
+                onAttemptedWhenDisabled = ::triggerShake,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -142,58 +186,33 @@ fun SwipeToPayButton(
     val paddingPx    = with(density) { TrackPadding.toPx() }
     val maxOffsetPx  = (trackWidthPx - thumbSizePx - paddingPx * 2).coerceAtLeast(0f)
 
-    var completed       by remember { mutableStateOf(false) }
-    val animatedOffset   = remember { Animatable(0f) }
-
-
-    val arrowAlpha1 by rememberInfiniteTransition(label = "a1").animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "a1"
-    )
-    val arrowAlpha2 by rememberInfiniteTransition(label = "a2").animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, delayMillis = 180, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "a2"
-    )
-    val arrowAlpha3 by rememberInfiniteTransition(label = "a3").animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, delayMillis = 360, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "a3"
-    )
+    var completed      by remember { mutableStateOf(false) }
+    val animatedOffset  = remember { Animatable(0f) }
 
     val progress = if (maxOffsetPx > 0f)
-        (animatedOffset.value / maxOffsetPx).coerceIn(0f, 1f)
-    else 0f
+        (animatedOffset.value / maxOffsetPx).coerceIn(0f, 1f) else 0f
 
-    val thumbColor = when {
-        completed -> ThumbColorDone
-        !enabled  -> ThumbColorIdle.copy(alpha = 0.45f)
-        else      -> ThumbColorIdle
-    }
+    val thumbBrush = if (!enabled)
+        Brush.verticalGradient(listOf(ThumbTop.copy(alpha = 0.4f), ThumbBot.copy(alpha = 0.4f)))
+    else
+        Brush.verticalGradient(listOf(ThumbTop, ThumbBot))
 
     Box(
         modifier = modifier
             .height(TrackHeight)
             .clip(RoundedCornerShape(999.dp))
-            .background(TrackBgColor)
+            .background(TrackBg)
+            .drawBehind {
+                drawRoundRect(
+                    color = TrackBorderColor,
+                    cornerRadius = CornerRadius(size.height / 2f),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
             .onGloballyPositioned { trackWidthPx = it.size.width.toFloat() },
         contentAlignment = Alignment.CenterStart
     ) {
-
-        // Green fill track
+        // Green fill sweep
         if (maxOffsetPx > 0f && enabled) {
             Box(
                 modifier = Modifier
@@ -203,48 +222,33 @@ fun SwipeToPayButton(
                                 with(density) { animatedOffset.value.toDp() }
                     )
                     .clip(RoundedCornerShape(999.dp))
-                    .background(FillColor)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                FillColor.copy(alpha = 0.6f),
+                                FillColor.copy(alpha = 0.15f)
+                            )
+                        )
+                    )
             )
         }
 
-        // Pulsing arrows — anchored to right edge, not left
-        if (!completed) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)  // ← right side
-                    .padding(end = 16.dp),       // ← right padding
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                listOf(arrowAlpha1, arrowAlpha2, arrowAlpha3).forEach { alpha ->
-                    val effectiveAlpha = if (!enabled) {
-                        alpha * 0.3f
-                    } else {
-                        (alpha * (1f - progress * 2.5f)).coerceIn(0f, 1f)
-                    }
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = effectiveAlpha),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-
-        // Centre label
+        // Label — starts after the thumb, single line, never wraps
         Text(
-            text = if (completed) "Processing…" else "Swipe to Pay",
+            text = if (completed) "Processing…" else "Swipe to pay",
             color = Color.White.copy(
                 alpha = when {
-                    completed -> 1f
-                    !enabled  -> 0.35f
-                    else      -> (1f - progress * 2f).coerceIn(0f, 1f)
+                    completed -> 0.75f
+                    !enabled  -> 0.25f
+                    else      -> (0.65f * (1f - progress * 2f)).coerceIn(0f, 0.65f)
                 }
             ),
             fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            modifier = Modifier.align(Alignment.Center)
+            fontSize = 13.sp,
+            maxLines = 1,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(start = ThumbSize + TrackPadding + 4.dp, end = 8.dp)
         )
 
         // Draggable thumb
@@ -254,41 +258,26 @@ fun SwipeToPayButton(
                 .offset { IntOffset(animatedOffset.value.roundToInt(), 0) }
                 .size(ThumbSize)
                 .clip(CircleShape)
-                .background(thumbColor)
+                .background(thumbBrush)
                 .pointerInput(enabled, completed, maxOffsetPx) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             if (!enabled) {
                                 scope.launch {
-                                    animatedOffset.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy
-                                        )
-                                    )
+                                    animatedOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
                                 }
                                 onAttemptedWhenDisabled?.invoke()
                                 return@detectHorizontalDragGestures
                             }
                             if (animatedOffset.value < maxOffsetPx - 10f) {
                                 scope.launch {
-                                    animatedOffset.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy
-                                        )
-                                    )
+                                    animatedOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
                                 }
                             }
                         },
                         onDragCancel = {
                             scope.launch {
-                                animatedOffset.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy
-                                    )
-                                )
+                                animatedOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
                             }
                         },
                         onHorizontalDrag = { _, dragAmount ->
@@ -304,12 +293,7 @@ fun SwipeToPayButton(
                                     onSwiped()
                                     delay(2500)
                                     completed = false
-                                    animatedOffset.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy
-                                        )
-                                    )
+                                    animatedOffset.animateTo(0f, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
                                 }
                             }
                         }
@@ -321,7 +305,7 @@ fun SwipeToPayButton(
                 imageVector = if (completed) Icons.Default.Check else Icons.Default.ArrowForward,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
     }

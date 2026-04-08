@@ -380,13 +380,13 @@ private fun FormView(
                                 fontSize = 15.sp
                             )
                             Spacer(Modifier.height(4.dp))
-                            Text("PDF, PNG, JPG, DOCX · Max 500MB", color = MediumGray, fontSize = 12.sp)
+                            Text("PDF, PNG, JPG, DOCX · Max 100MB", color = MediumGray, fontSize = 12.sp)
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
             AnimatedVisibility(
                 visible = uiState.amount.isNotBlank() && baseAmount > 0,
                 enter = fadeIn() + expandVertically(),

@@ -66,6 +66,8 @@ import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntOffset
 import androidx.core.view.WindowCompat
 import com.docuvio.app.MainActivity
 
@@ -816,14 +818,14 @@ fun SelectOptionsContent(
                                         fontSize = 15.sp
                                     )
                                     Spacer(Modifier.height(4.dp))
-                                    Text("PDF, PNG, JPG, DOCX · Max 500MB", color = MediumGray, fontSize = 12.sp)
+                                    Text("PDF, PNG, JPG, DOCX · Max 100MB", color = MediumGray, fontSize = 12.sp)
                                 }
                             }
                         }
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "Accepted: PDF, PNG, JPG, DOCX (Max 500MB)",
+                        "Accepted: PDF, PNG, JPG, DOCX (Max 100MB)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MediumGray,
                         textAlign = TextAlign.Center,
@@ -832,7 +834,7 @@ fun SelectOptionsContent(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
 
             Box(modifier = Modifier
                 .fillMaxWidth()
@@ -893,7 +895,7 @@ fun SelectOptionsContent(
                         onToggle = onCvModeToggle
                     )
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     Text(
                         "Color Mode",
@@ -911,7 +913,7 @@ fun SelectOptionsContent(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(140.dp)
+                                    .heightIn(min = 80.dp)
                                     .alpha(if (uiState.isCvMode) 0.4f else 1f)
                                     .background(
                                         if (isSelected) SoftBlue.copy(alpha = 0.1f) else Color.Transparent,
@@ -974,7 +976,7 @@ fun SelectOptionsContent(
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     DropdownSection(
                         label = "Paper Type",
@@ -986,7 +988,7 @@ fun SelectOptionsContent(
                         onSelect = onPaperTypeSelect
                     )
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     DropdownSection(
                         label = "Finish Type",
@@ -1010,7 +1012,7 @@ fun SelectOptionsContent(
                         )
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(18.dp))
 
 
 
@@ -1072,7 +1074,7 @@ fun SelectOptionsContent(
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     Text(
                         "Print Side",
@@ -1106,9 +1108,9 @@ fun SelectOptionsContent(
                                 .padding(12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Article,
@@ -1143,9 +1145,9 @@ fun SelectOptionsContent(
                                 .padding(12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.AutoStories,
@@ -1162,7 +1164,7 @@ fun SelectOptionsContent(
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     uiState.shop?.let { shop ->
                         PickupDateTimeSection(
@@ -1219,7 +1221,7 @@ fun SelectOptionsContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(140.dp).navigationBarsPadding())
+            Spacer(modifier = Modifier.height(90.dp).navigationBarsPadding())
         }
 
         FloatingPayBar(uiState = uiState, onSubmit = onSubmit)
@@ -1357,7 +1359,6 @@ private fun CvModeToggle(
 private fun OrderLoadingScreen(text: String) {
     val infiniteTransition = rememberInfiniteTransition(label = "loading")
 
-    // Each line gets a staggered animated progress
     @Composable
     fun lineProgress(delayMillis: Int): Float {
         val raw by infiniteTransition.animateFloat(
@@ -1365,8 +1366,7 @@ private fun OrderLoadingScreen(text: String) {
             animationSpec = infiniteRepeatable(
                 tween(1800, delayMillis = delayMillis, easing = FastOutSlowInEasing),
                 RepeatMode.Restart
-            ),
-            label = "line_$delayMillis"
+            )
         )
         return raw
     }
@@ -1379,18 +1379,15 @@ private fun OrderLoadingScreen(text: String) {
 
     val dot1 by infiniteTransition.animateFloat(
         initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "d1"
+        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse)
     )
     val dot2 by infiniteTransition.animateFloat(
         initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400, delayMillis = 200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "d2"
+        animationSpec = infiniteRepeatable(tween(1400, delayMillis = 200), RepeatMode.Reverse)
     )
     val dot3 by infiniteTransition.animateFloat(
         initialValue = 0.3f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400, delayMillis = 400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "d3"
+        animationSpec = infiniteRepeatable(tween(1400, delayMillis = 400), RepeatMode.Reverse)
     )
 
     val red   = Color(0xFFE8453C)
@@ -1399,23 +1396,27 @@ private fun OrderLoadingScreen(text: String) {
     val trackColor = Color(0xFFE8D5B0)
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Cream),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Cream),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(28.dp)
         ) {
-            // Document card
+
+            // Document Card
             Box(
                 modifier = Modifier
                     .size(width = 72.dp, height = 90.dp)
-                    .shadow(elevation = 8.dp, shape = RoundedCornerShape(6.dp))
+                    .shadow(8.dp, RoundedCornerShape(6.dp))
                     .clip(RoundedCornerShape(6.dp))
                     .background(Color.White)
                     .padding(horizontal = 10.dp, vertical = 12.dp)
             ) {
-                // Folded corner
+
+                // Fold corner
                 Box(
                     modifier = Modifier
                         .size(16.dp)
@@ -1425,9 +1426,12 @@ private fun OrderLoadingScreen(text: String) {
                 )
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(7.dp),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 6.dp), // ✅ FIX: pushes lines down
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
+
                     val lines = listOf(
                         0.80f to p1,
                         1.00f to p2,
@@ -1435,7 +1439,9 @@ private fun OrderLoadingScreen(text: String) {
                         0.90f to p4,
                         0.50f to p5,
                     )
+
                     lines.forEach { (widthFraction, progress) ->
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(widthFraction)
@@ -1443,7 +1449,7 @@ private fun OrderLoadingScreen(text: String) {
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(trackColor)
                         ) {
-                            // Sweeping gradient bar
+
                             val alpha = when {
                                 progress < -0.5f -> 0f
                                 progress < 0f    -> (progress + 0.5f) / 0.5f
@@ -1452,11 +1458,19 @@ private fun OrderLoadingScreen(text: String) {
                                 else             -> 1f
                             }.coerceIn(0f, 1f)
 
+                            // Normalized progress
+                            val normalized = ((progress + 1f) / 3f).coerceIn(0f, 1f)
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .fillMaxWidth(0.5f)
-                                    .offset(x = 72.dp * progress * widthFraction)
+                                    .offset {
+                                        IntOffset(
+                                            x = (normalized * 100).toInt(), // safe movement
+                                            y = 0
+                                        )
+                                    }
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(
                                         Brush.horizontalGradient(
@@ -1473,7 +1487,7 @@ private fun OrderLoadingScreen(text: String) {
                 }
             }
 
-            // Label + dots
+            // Text + dots
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -1482,9 +1496,9 @@ private fun OrderLoadingScreen(text: String) {
                     text = text.uppercase(),
                     fontSize = 10.sp,
                     letterSpacing = 4.sp,
-                    color = Color.Black.copy(alpha = 0.3f),
-                    fontWeight = FontWeight.Normal
+                    color = Color.Black.copy(alpha = 0.3f)
                 )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     listOf(dot1 to red, dot2 to amber, dot3 to lime).forEach { (alpha, color) ->
                         Box(
@@ -1872,7 +1886,7 @@ fun PickupDateTimeSection(
             ) {
                 Text(
                     text = value?.let { formatPickupDateTime(it) }
-                        ?: "Select date above, then choose time",
+                        ?: "“Select date, then time”",
                     color = if (value != null) AlmostBlack else MediumGray.copy(alpha = 0.5f),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (value != null) FontWeight.SemiBold else FontWeight.Normal

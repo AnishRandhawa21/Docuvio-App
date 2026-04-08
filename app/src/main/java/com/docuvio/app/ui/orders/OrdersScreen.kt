@@ -85,7 +85,7 @@ fun OrdersScreen(
 
         PullToRefreshBox(
             isRefreshing = uiState.isLoading,
-            onRefresh = { viewModel.loadOrders() },
+            onRefresh = { viewModel.loadOrders(force = true) },
             state = pullToRefreshState,
             modifier = Modifier.fillMaxSize(),
             indicator = {

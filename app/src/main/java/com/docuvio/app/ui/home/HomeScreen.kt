@@ -209,7 +209,7 @@ fun FancySearchBar(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.6f))
+        border = BorderStroke(1.6.dp, AlmostBlack.copy(alpha = 0.6f))
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
