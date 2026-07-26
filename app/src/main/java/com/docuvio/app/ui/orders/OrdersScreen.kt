@@ -106,7 +106,7 @@ fun OrdersScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 10.dp),
+                        .padding(top = 0.dp, bottom = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -183,7 +183,7 @@ fun OrdersScreen(
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 16.dp), // CHANGED: only vertical padding
+                            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(6) {
@@ -220,7 +220,7 @@ fun OrdersScreen(
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 16.dp), // CHANGED: only vertical padding
+                            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(

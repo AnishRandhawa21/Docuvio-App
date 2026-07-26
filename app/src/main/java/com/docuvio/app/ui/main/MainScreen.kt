@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -82,6 +83,16 @@ fun MainScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    Cream.copy(alpha = 0.8f),
+                                    Cream,
+                                    Cream
+                                )
+                            )
+                        )
                         .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     contentAlignment = Alignment.BottomCenter
@@ -158,27 +169,11 @@ fun MainScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
 
             content(Modifier.fillMaxSize())
 
-            // ONLY bottom fade (small + soft)
-//            Box(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .height(36.dp)
-//                    .align(Alignment.BottomCenter)
-//                    .background(
-//                        Brush.verticalGradient(
-//                            colors = listOf(
-//                                Color.Transparent,
-//                                Black.copy(alpha = 0.35f),
-//                                Black.copy(alpha = 0.75f)
-//                            )
-//                        )
-//                    )
-//            )
         }
     }
 }

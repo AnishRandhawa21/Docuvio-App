@@ -33,24 +33,13 @@ class AuthViewModel(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     init {
-        // ✅ Only load if session valid
-        if (tokenManager.isSessionValid()) {
-            loadOrganisations()
-        }
+        loadOrganisations()
     }
 
     /* ---------------- LOAD ORGANISATIONS ---------------- */
 
     fun loadOrganisations() {
         viewModelScope.launch {
-
-            // ✅ Prevent API call if session expired
-            if (!tokenManager.isSessionValid()) {
-                _uiState.value = _uiState.value.copy(
-                    error = "Session expired. Please login again."
-                )
-                return@launch
-            }
 
             _uiState.value = _uiState.value.copy(
                 isLoadingOrganisations = true,
