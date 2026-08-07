@@ -2,6 +2,7 @@ package com.docuvio.app.ui.profile
 
 import android.util.Log
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -91,7 +92,6 @@ fun FeedbackScreen(
     var loading by remember { mutableStateOf(false) }
     var submitted by remember { mutableStateOf(false) }
 
-    // Keep status bar matching cream throughout
     val systemUiController = rememberSystemUiController()
     DisposableEffect(Unit) {
         systemUiController.setStatusBarColor(
@@ -138,50 +138,41 @@ fun FeedbackScreen(
                 .verticalScroll(rememberScrollState())
         ) {
 
-            /* ---------- HEADER (cream, no dark background) ---------- */
+            /* ---------- HEADER ---------- */
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 52.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
+                    .padding(top = 52.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
             ) {
-                // Back button — subtle pill on cream
                 IconButton(
                     onClick = { onBack() },
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(AlmostBlack.copy(alpha = 0.07f))
+                        .background(AlmostBlack.copy(alpha = 0.06f))
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
                         tint = AlmostBlack,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
 
                 Text(
                     text = "Share Your Thoughts",
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = AlmostBlack,
                     letterSpacing = (-0.5).sp
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(5.dp))
                 Text(
                     text = "Help us make Docuvio better for you",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = AlmostBlack.copy(alpha = 0.45f)
-                )
-
-                Spacer(Modifier.height(20.dp))
-
-                // Subtle divider
-                HorizontalDivider(
-                    color = AlmostBlack.copy(alpha = 0.08f),
-                    thickness = 1.dp
+                    color = DarkGray.copy(alpha = 0.75f)
                 )
             }
 
@@ -190,15 +181,13 @@ fun FeedbackScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(bottom = 40.dp)
             ) {
 
                 /* -- STAR RATING SECTION -- */
+                SectionHeader(text = "Rate Your Experience")
                 SectionCard {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        SectionLabel(text = "Rate your experience")
-                        Spacer(Modifier.height(12.dp))
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Center,
@@ -216,9 +205,9 @@ fun FeedbackScreen(
                                             Icons.Default.StarBorder,
                                         contentDescription = null,
                                         tint = if (i <= rating)
-                                            Color(0xFFFFC107)
+                                            GoldenYellow
                                         else
-                                            Color(0xFFD1CBBD),
+                                            LightGray,
                                         modifier = Modifier.size(32.dp)
                                     )
                                 }
@@ -230,27 +219,27 @@ fun FeedbackScreen(
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFFFC107)
+                            fontWeight = FontWeight.Bold,
+                            color = GoldenYellow
                         )
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 /* -- FEEDBACK TYPE SECTION -- */
+                SectionHeader(text = "Feedback Type")
                 SectionCard {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        SectionLabel(text = "Feedback Type")
-                        Spacer(Modifier.height(12.dp))
-
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         options.forEach { option ->
                             val isSelected = type == option
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .clip(RoundedCornerShape(12.dp))
                                     .clickable { type = option }
                                     .background(
                                         if (isSelected)
@@ -263,8 +252,8 @@ fun FeedbackScreen(
                                         color = if (isSelected)
                                             LimeGreen.copy(alpha = 0.5f)
                                         else
-                                            Color(0xFFE5DFD4),
-                                        shape = RoundedCornerShape(10.dp)
+                                            LightGray,
+                                        shape = RoundedCornerShape(12.dp)
                                     )
                                     .padding(horizontal = 12.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -274,7 +263,7 @@ fun FeedbackScreen(
                                     onClick = { type = option },
                                     colors = RadioButtonDefaults.colors(
                                         selectedColor = LimeGreen,
-                                        unselectedColor = Color(0xFFB5AFA5)
+                                        unselectedColor = MediumGray
                                     )
                                 )
                                 Spacer(Modifier.width(6.dp))
@@ -284,7 +273,7 @@ fun FeedbackScreen(
                                     Icon(
                                         imageVector = optionIcons[option]!!,
                                         contentDescription = option,
-                                        tint = if (isSelected) AlmostBlack else Color(0xFF6B6560),
+                                        tint = if (isSelected) AlmostBlack else DarkGray,
                                         modifier = Modifier.size(18.dp)
                                     )
 
@@ -293,8 +282,8 @@ fun FeedbackScreen(
                                     Text(
                                         text = option,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (isSelected) AlmostBlack else Color(0xFF6B6560)
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = if (isSelected) AlmostBlack else DarkGray
                                     )
                                 }
                             }
@@ -302,65 +291,57 @@ fun FeedbackScreen(
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 /* -- MESSAGE SECTION -- */
+                SectionHeader(text = "Your Message")
                 SectionCard {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        SectionLabel(text = "Your Message")
-                        Spacer(Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = message,
-                            onValueChange = { message = it },
-                            placeholder = { Text("Describe the issue or suggestion…", color = Color(0xFFB5AFA5)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 4,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = LimeGreen,
-                                unfocusedBorderColor = Color(0xFFE0D9CF),
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color(0xFFFAF8F5)
-                            )
+                    OutlinedTextField(
+                        value = message,
+                        onValueChange = { message = it },
+                        placeholder = { Text("Describe the issue or suggestion…", color = MediumGray) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = LimeGreen,
+                            unfocusedBorderColor = LightGray,
+                            focusedContainerColor = White,
+                            unfocusedContainerColor = SurfaceCream
                         )
-                    }
+                    )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 /* -- EMAIL SECTION -- */
+                SectionHeader(text = "Reply To")
                 SectionCard {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        SectionLabel(text = "Reply To")
-                        Spacer(Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = email ?: "",
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                disabledBorderColor = Color(0xFFE0D9CF),
-                                disabledContainerColor = Color(0xFFF3F0EB),
-                                disabledTextColor = Color(0xFF8A847C)
-                            ),
-                            enabled = false,
-                            trailingIcon = {
-                                Text(
-                                    text = "Auto-filled",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFB5AFA5),
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                            }
-                        )
-                    }
+                    OutlinedTextField(
+                        value = email ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledBorderColor = LightGray,
+                            disabledContainerColor = SurfaceCream,
+                            disabledTextColor = DarkGray
+                        ),
+                        enabled = false,
+                        trailingIcon = {
+                            Text(
+                                text = "Auto-filled",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MediumGray,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                        }
+                    )
                 }
 
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(32.dp))
 
                 /* -- SUBMIT BUTTON -- */
                 Button(
@@ -384,22 +365,18 @@ fun FeedbackScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(54.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 2.dp,
-                        pressedElevation = 0.dp
-                    )
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     if (loading) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = White,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(22.dp)
                         )
                     } else {
                         Text(
                             "Submit Feedback",
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp,
                             letterSpacing = 0.2.sp
                         )
@@ -415,12 +392,12 @@ fun FeedbackScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(NewGreen.copy(alpha = 0.10f))
                             .border(
                                 1.dp,
                                 NewGreen.copy(alpha = 0.3f),
-                                RoundedCornerShape(12.dp)
+                                RoundedCornerShape(14.dp)
                             )
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -436,7 +413,7 @@ fun FeedbackScreen(
                         Text(
                             text = "Thanks for your feedback!",
                             color = NewGreen,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -452,10 +429,9 @@ fun FeedbackScreen(
 private fun SectionCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        shadowElevation = 1.dp,
-        tonalElevation = 0.dp
+        shape = RoundedCornerShape(18.dp),   // matches DeleteAccountScreen's card radius
+        color = White,
+        border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.06f))
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
             content()
@@ -463,13 +439,15 @@ private fun SectionCard(content: @Composable () -> Unit) {
     }
 }
 
+// iOS-style grouped-list section header — same pattern as DeleteAccountScreen
 @Composable
-private fun SectionLabel(text: String) {
+private fun SectionHeader(text: String) {
     Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = Color(0xFF8A847C),
-        letterSpacing = 0.4.sp
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = DarkGray.copy(alpha = 0.55f),
+        letterSpacing = 0.8.sp,
+        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
     )
 }

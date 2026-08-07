@@ -1,6 +1,7 @@
 package com.docuvio.app.ui.profile
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -92,7 +93,6 @@ fun DeleteAccountScreen(
     var submitted by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
 
-    // Keep status bar matching the cream background throughout
     val window = activity.window
 
     SideEffect {
@@ -119,50 +119,41 @@ fun DeleteAccountScreen(
                 .verticalScroll(rememberScrollState())
         ) {
 
-            /* ---------- HEADER (cream, no dark background) ---------- */
+            /* ---------- HEADER ---------- */
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 52.dp, bottom = 20.dp, start = 20.dp, end = 20.dp)
+                    .padding(top = 52.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
             ) {
-                // Back button — subtle, pill-shaped
                 IconButton(
                     onClick = { onBack() },
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(AlmostBlack.copy(alpha = 0.07f))
+                        .background(AlmostBlack.copy(alpha = 0.06f))
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
                         tint = AlmostBlack,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
 
                 Text(
                     text = "Delete Account",
                     style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = AlmostBlack,
                     letterSpacing = (-0.5).sp
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(5.dp))
                 Text(
                     text = "This action is permanent and cannot be undone",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = AlmostBlack.copy(alpha = 0.45f)
-                )
-
-                Spacer(Modifier.height(20.dp))
-
-                // Subtle divider replacing the heavy header block
-                HorizontalDivider(
-                    color = AlmostBlack.copy(alpha = 0.08f),
-                    thickness = 1.dp
+                    color = DarkGray.copy(alpha = 0.75f)
                 )
             }
 
@@ -171,19 +162,19 @@ fun DeleteAccountScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(bottom = 40.dp)
             ) {
 
                 /* -- WARNING CARD -- */
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .background(CoralRed.copy(alpha = 0.08f))
                         .border(
                             width = 1.dp,
-                            color = CoralRed.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(14.dp)
+                            color = CoralRed.copy(alpha = 0.35f),
+                            shape = RoundedCornerShape(16.dp)
                         )
                         .padding(16.dp),
                     verticalAlignment = Alignment.Top
@@ -200,7 +191,7 @@ fun DeleteAccountScreen(
                     Column {
                         Text(
                             text = "Warning",
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = CoralRed,
                             fontSize = 14.sp
                         )
@@ -214,14 +205,15 @@ fun DeleteAccountScreen(
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(28.dp))
 
                 /* -- ACCOUNT INFO SECTION -- */
+                SectionHeader(text = "Account Details")
                 DeleteSectionCard {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        DeleteSectionLabel(text = "Account Details")
-                        Spacer(Modifier.height(12.dp))
-
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         OutlinedTextField(
                             value = email ?: "",
                             onValueChange = {},
@@ -231,25 +223,23 @@ fun DeleteAccountScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusProperties { canFocus = false },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledBorderColor = Color(0xFFE0D9CF),
-                                disabledContainerColor = Color(0xFFF3F0EB),
-                                disabledTextColor = Color(0xFF8A847C),
-                                disabledLabelColor = Color(0xFFB5AFA5)
+                                disabledBorderColor = LightGray,
+                                disabledContainerColor = SurfaceCream,
+                                disabledTextColor = DarkGray,
+                                disabledLabelColor = MediumGray
                             ),
                             enabled = false,
                             trailingIcon = {
                                 Text(
                                     text = "Auto-filled",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFB5AFA5),
+                                    color = MediumGray,
                                     modifier = Modifier.padding(end = 8.dp)
                                 )
                             }
                         )
-
-                        Spacer(Modifier.height(12.dp))
 
                         OutlinedTextField(
                             value = username ?: "",
@@ -260,19 +250,19 @@ fun DeleteAccountScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusProperties { canFocus = false },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                disabledBorderColor = Color(0xFFE0D9CF),
-                                disabledContainerColor = Color(0xFFF3F0EB),
-                                disabledTextColor = Color(0xFF8A847C),
-                                disabledLabelColor = Color(0xFFB5AFA5)
+                                disabledBorderColor = LightGray,
+                                disabledContainerColor = SurfaceCream,
+                                disabledTextColor = DarkGray,
+                                disabledLabelColor = MediumGray
                             ),
                             enabled = false,
                             trailingIcon = {
                                 Text(
                                     text = "Auto-filled",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFB5AFA5),
+                                    color = MediumGray,
                                     modifier = Modifier.padding(end = 8.dp)
                                 )
                             }
@@ -280,34 +270,30 @@ fun DeleteAccountScreen(
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 /* -- REASON SECTION -- */
+                SectionHeader(text = "Reason for Leaving")
                 DeleteSectionCard {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        DeleteSectionLabel(text = "Reason for Leaving")
-                        Spacer(Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = reason,
-                            onValueChange = { reason = it },
-                            placeholder = { Text("Tell us why you're leaving (optional)…", color = Color(0xFFB5AFA5)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 3,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = LimeGreen,
-                                unfocusedBorderColor = Color(0xFFE0D9CF),
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color(0xFFFAF8F5),
-                                focusedLabelColor = LimeGreen,
-                                cursorColor = LimeGreen
-                            )
+                    OutlinedTextField(
+                        value = reason,
+                        onValueChange = { reason = it },
+                        placeholder = { Text("Tell us why you're leaving (optional)…", color = MediumGray) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = LimeGreen,
+                            unfocusedBorderColor = LightGray,
+                            focusedContainerColor = White,
+                            unfocusedContainerColor = SurfaceCream,
+                            focusedLabelColor = LimeGreen,
+                            cursorColor = LimeGreen
                         )
-                    }
+                    )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
                 /* -- CONFIRMATION SECTION -- */
                 DeleteSectionCard {
@@ -320,22 +306,22 @@ fun DeleteAccountScreen(
                             onCheckedChange = { confirmed = it },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = DarkGreen,
-                                checkmarkColor = Color.White,
-                                uncheckedColor = Color(0xFFB5AFA5)
+                                checkmarkColor = White,
+                                uncheckedColor = MediumGray
                             )
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = "I confirm that I want to delete my Docuvio account",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (confirmed) AlmostBlack else Color(0xFF8A847C),
-                            fontWeight = if (confirmed) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (confirmed) AlmostBlack else DarkGray,
+                            fontWeight = if (confirmed) FontWeight.Bold else FontWeight.Medium,
                             lineHeight = 18.sp
                         )
                     }
                 }
 
-                Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(32.dp))
 
                 /* -- SUBMIT BUTTON -- */
                 Button(
@@ -353,30 +339,26 @@ fun DeleteAccountScreen(
                     enabled = confirmed && !loading,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CoralRed,
-                        disabledContainerColor = CoralRed.copy(alpha = 0.4f)
+                        disabledContainerColor = CoralRed.copy(alpha = 0.35f)
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 2.dp,
-                        pressedElevation = 0.dp
-                    )
+                        .height(54.dp)
                 ) {
                     if (loading) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = White,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(22.dp)
                         )
                     } else {
                         Text(
                             text = "Submit Request",
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp,
                             letterSpacing = 0.2.sp,
-                            color = Color.White
+                            color = White
                         )
                     }
                 }
@@ -390,12 +372,12 @@ fun DeleteAccountScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(LimeGreen.copy(alpha = 0.10f))
                             .border(
                                 1.dp,
                                 LimeGreen.copy(alpha = 0.3f),
-                                RoundedCornerShape(12.dp)
+                                RoundedCornerShape(14.dp)
                             )
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -411,7 +393,7 @@ fun DeleteAccountScreen(
                         Text(
                             text = "Request submitted successfully.",
                             color = DarkGreen,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -427,10 +409,9 @@ fun DeleteAccountScreen(
 private fun DeleteSectionCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        shadowElevation = 1.dp,
-        tonalElevation = 0.dp
+        shape = RoundedCornerShape(18.dp),   // single consistent radius across all cards
+        color = White,
+        border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.06f))
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
             content()
@@ -438,13 +419,15 @@ private fun DeleteSectionCard(content: @Composable () -> Unit) {
     }
 }
 
+// iOS-style grouped-list section header: uppercase, small, muted, left-inset to match card padding
 @Composable
-private fun DeleteSectionLabel(text: String) {
+private fun SectionHeader(text: String) {
     Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = Color(0xFF8A847C),
-        letterSpacing = 0.4.sp
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = DarkGray.copy(alpha = 0.55f),
+        letterSpacing = 0.8.sp,
+        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
     )
 }

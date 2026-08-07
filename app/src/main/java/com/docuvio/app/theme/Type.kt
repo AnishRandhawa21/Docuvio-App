@@ -1,6 +1,5 @@
 package com.docuvio.app.theme
 
-
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -23,63 +22,63 @@ val Manrope = FontFamily(
 val AppTypography = Typography(
     bodyLarge = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,       // was Normal
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,       // was Normal
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.25.sp
     ),
     bodySmall = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,       // was Normal
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp
     ),
     titleLarge = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.ExtraBold,    // was Bold
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.sp
     ),
     titleMedium = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,         // was SemiBold
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.15.sp
     ),
     titleSmall = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,     // was Medium
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
     ),
     labelLarge = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,     // was Medium
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp
     ),
     labelMedium = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,     // was Medium
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp
     ),
     labelSmall = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,         // was Medium — status/payment chips use this
         fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp
@@ -91,12 +90,12 @@ val AppTypography = Typography(
     ),
     headlineMedium = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.ExtraBold,    // was Bold
         fontSize = 28.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = Manrope,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.SemiBold,     // was SemiBold — kept, already matches
         fontSize = 24.sp
     )
 )

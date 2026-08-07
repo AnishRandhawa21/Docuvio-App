@@ -1,35 +1,37 @@
 package com.docuvio.app.ui.profile
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.docuvio.app.core.auth.TokenManager
-import com.docuvio.app.viewmodel.ProfileViewModel
-import com.docuvio.app.theme.AlmostBlack // ADDED: Import theme colors
-import com.docuvio.app.theme.Cream // ADDED: Import theme colors
-import com.docuvio.app.theme.LimeGreen // ADDED: Import theme colors
-import com.docuvio.app.theme.MediumGray // ADDED: Import theme colors
-import androidx.compose.foundation.shape.RoundedCornerShape // ADDED: For rounded corners
-import com.docuvio.app.theme.CoralRed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
-import androidx.compose.ui.platform.LocalContext
-
-import com.docuvio.app.theme.DarkBlue
-import android.app.Activity
-import androidx.core.view.WindowCompat
-import androidx.compose.ui.graphics.toArgb
 import com.docuvio.app.BuildConfig
+import com.docuvio.app.core.auth.TokenManager
+import com.docuvio.app.theme.*
+import com.docuvio.app.viewmodel.ProfileViewModel
 
 @Composable
 fun ProfileScreen(
@@ -46,204 +48,251 @@ fun ProfileScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-
-            // 🔲 popup background
-            containerColor = Cream, // CHANGED: from Color(0xFF2B2B2B) to Color.White
-
-            // 📝 text colors
-            titleContentColor = AlmostBlack, // CHANGED: from Color.White to AlmostBlack
-            textContentColor = MediumGray, // CHANGED: from Color(0xFFCCCCCC) to MediumGray
-
+            containerColor = Cream,
+            titleContentColor = AlmostBlack,
+            textContentColor = AlmostBlack.copy(alpha = 0.7f),
             title = {
                 Text(
                     text = "Logout",
-                    color = AlmostBlack, // CHANGED: from Color(0xFFFFFFFF) to AlmostBlack
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
                 )
             },
-
             text = {
                 Text(
-                    text = "Are you sure you want to logout?",
-                    color = MediumGray // CHANGED: from Color(0xFF878787) to MediumGray
+                    text = "Are you sure you want to logout? You'll need to sign in again to access your orders.",
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
-
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showLogoutDialog = false
                         viewModel.logout(onLogout)
                     },
                     enabled = !isLoggingOut,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = CoralRed
-                    )
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CoralRed,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Logout")
+                    Text("Logout", fontWeight = FontWeight.Bold)
                 }
             },
-
             dismissButton = {
                 TextButton(
                     onClick = { showLogoutDialog = false },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = AlmostBlack // CHANGED: from Color.White to AlmostBlack
-                    )
+                    colors = ButtonDefaults.textButtonColors(contentColor = AlmostBlack)
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", fontWeight = FontWeight.SemiBold)
                 }
             },
-            shape = RoundedCornerShape(16.dp) // CHANGED: Added rounded corners for modern look
+            shape = RoundedCornerShape(24.dp)
         )
     }
-    val activity = LocalContext.current as Activity
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Cream) // CHANGED: from gradient dark to Cream solid color
-    ) {
-        IconButton(
-            onClick = {
-                onDeleteClick()
-            },
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete Data",
-                tint = CoralRed
-            )
+    Scaffold(
+        containerColor = Cream,
+        topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Text(
+                    text = "Profile",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = AlmostBlack,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+
+                IconButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Account",
+                        tint = CoralRed.copy(alpha = 0.8f)
+                    )
+                }
+            }
         }
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 0.dp, start = 16.dp, end = 16.dp, bottom = 0.dp), // CHANGED: Adjusted padding to match other screens
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(48.dp)) // CHANGED: from 32.dp to 48.dp for better spacing
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Profile Avatar
-            Surface(
-                modifier = Modifier.size(100.dp),
-                shape = RoundedCornerShape(10.dp), // CHANGED: from MaterialTheme.shapes.large to circular
-                color = Color(0xFFE8ED95), // CHANGED: from Color(0xFFFFB88F) to SoftYellow
-                shadowElevation = 2.dp // ADDED: shadow for depth
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = userName?.firstOrNull()?.uppercase() ?: "U",
-                        style = MaterialTheme.typography.displayLarge.copy( // CHANGED: Added bold
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = LimeGreen // CHANGED: from Color(0xFFFF8840) to DeepAmber
-                    )
-                }
+            // Flat Profile Header
+            ProfileHeader(userName = userName ?: "User")
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // Support Section
+            ProfileSection(title = "Support") {
+                ProfileItem(
+                    icon = Icons.Outlined.Feedback,
+                    title = "Send Feedback",
+                    subtitle = "Help us improve Docuvio",
+                    iconColor = Blue,
+                    onClick = onFeedbackClick
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Username
-            Text(
-                text = userName ?: "User",
-                style = MaterialTheme.typography.headlineMedium.copy( // CHANGED: Added bold
-                    fontWeight = FontWeight.Bold
-                ),
-                color = AlmostBlack // CHANGED: from Color(0xFFFFFFFF) to AlmostBlack
-            )
+            // Account Section
+            ProfileSection(title = "Account") {
+                ProfileItem(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    title = "Logout",
+                    subtitle = "Sign out of your account",
+                    iconColor = CoralRed,
+                    showArrow = false,
+                    onClick = { showLogoutDialog = true }
+                )
+            }
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Account Settings Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White // CHANGED: from Color(0xFF363636) to Color.White
-                ),
-                shape = RoundedCornerShape(16.dp), // CHANGED: Added rounded corners
-                elevation = CardDefaults.cardElevation(4.dp) // CHANGED: Added elevation
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) { // CHANGED: from 16.dp to 20.dp
-                    Text(
-                        text = "Account Settings",
-                        style = MaterialTheme.typography.titleMedium.copy( // CHANGED: Added bold
-                            fontWeight = FontWeight.Bold
-                        ),
-                        modifier = Modifier.padding(bottom = 16.dp),
-                        color = AlmostBlack // CHANGED: from Color(0xFFFFFFFF) to AlmostBlack
-                    )
-
-                    HorizontalDivider( // CHANGED: from Divider to HorizontalDivider
-                        modifier = Modifier.padding(bottom = 16.dp),
-                        color = MediumGray.copy(alpha = 0.3f), // CHANGED: from Color(0xFF878787) to MediumGray with transparency
-                        thickness = 1.dp // ADDED: explicit thickness
-                    )
-
-                    // Logout Button
-                    Button(
-                        onClick = { showLogoutDialog = true },
-                        enabled = !isLoggingOut,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFEBEE),
-                            contentColor = CoralRed,
-                            disabledContainerColor = Color(0xFFFFEBEE),
-                            disabledContentColor = CoralRed.copy(alpha = 0.6f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        if (isLoggingOut) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = CoralRed,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = "Logout",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = { onFeedbackClick() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE3F2FD), // light green
-                            contentColor = DarkBlue
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Send Feedback",
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Version text
+            // App Version Footer
             Text(
-                text = "v${BuildConfig.VERSION_NAME}",
+                text = "Docuvio v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MediumGray, // CHANGED: from Color(0xFF878787) to MediumGray
-                modifier = Modifier.padding(bottom = 16.dp) // ADDED: bottom padding
+                color = AlmostBlack.copy(alpha = 0.4f),
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun ProfileHeader(userName: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Avatar - Flat design
+        Surface(
+            modifier = Modifier.size(100.dp),
+            shape = CircleShape,
+            color = Color.White,
+            border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.1f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(SoftBlue.copy(alpha = 0.3f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = userName.firstOrNull()?.uppercase() ?: "U",
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = AlmostBlack
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = userName,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = AlmostBlack
+        )
+    }
+}
+
+@Composable
+fun ProfileSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = AlmostBlack.copy(alpha = 0.5f),
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = BorderStroke(1.5.dp, AlmostBlack.copy(alpha = 0.08f))
+            // Removed shadowElevation for flat look
+        ) {
+            Column(content = content)
+        }
+    }
+}
+
+@Composable
+fun ProfileItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    iconColor: Color,
+    showArrow: Boolean = true,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.size(44.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = iconColor.copy(alpha = 0.1f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = AlmostBlack
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = AlmostBlack.copy(alpha = 0.5f)
+            )
+        }
+
+        if (showArrow) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = AlmostBlack.copy(alpha = 0.3f)
             )
         }
     }
