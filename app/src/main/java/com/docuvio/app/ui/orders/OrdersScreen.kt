@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.data.model.Order
-import com.docuvio.app.theme.Inter
 import com.docuvio.app.utils.formatOrderDate
 import com.docuvio.app.viewmodel.OrdersViewModel
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,14 +45,8 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.res.painterResource
-import com.docuvio.app.theme.AlmostBlack // ADDED: Import theme colors
-import com.docuvio.app.theme.Cream // ADDED: Import theme colors
-import com.docuvio.app.theme.DeepAmber // ADDED: Import theme colors
-import com.docuvio.app.theme.MediumGray // ADDED: Import theme colors
-import com.docuvio.app.theme.OffWhite // ADDED: Import theme colors
-import com.docuvio.app.theme.SoftPink
 import androidx.compose.ui.zIndex
-import com.docuvio.app.theme.CoralRed
+import com.docuvio.app.theme.*
 import com.docuvio.app.ui.order.utils.formatPickupDateTime
 
 
@@ -113,10 +106,7 @@ fun OrdersScreen(
 
                     Text(
                         text = "Orders",
-                        style = MaterialTheme.typography.headlineLarge.copy( // CHANGED: Added font weight
-                            fontWeight = FontWeight.Bold
-                        ),
-                        fontFamily = Inter,
+                        style = MaterialTheme.typography.headlineLarge,
                         color = AlmostBlack // CHANGED: from Color(0xFF878787) to AlmostBlack
                     )
                 }
@@ -525,10 +515,10 @@ fun OrderStatusChip(status: String) {
             Color(0xFFF9A825) // amber / yellow
 
         "confirmed" ->
-            Color(0xFF1976D2) // BLUE (confirmation / success)
+            Blue // Calm Slate Blue
 
         "processing" ->
-            Color(0xFF0288D1) // lighter blue (in progress)
+            DarkBlue // Deep Navy
 
         "ready" ->
             Color(0xFF388E3C) // GREEN (ready to go)

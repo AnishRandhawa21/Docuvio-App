@@ -56,7 +56,6 @@ fun TermsScreen(
                 text = "Terms & Conditions",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Black,
-                    fontFamily = Montserrat,
                     fontSize = 26.sp
                 ),
                 color = AlmostBlack

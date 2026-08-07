@@ -1,91 +1,85 @@
 package com.docuvio.app.theme
 import androidx.compose.ui.graphics.Color
 
-/* ---------- Base ---------- */
+// ================================
+// Brand Colors
+// ================================
+val BrandRed = Color(0xFFED5F49)
+val BrandOrange = Color(0xFFF6AB49)
+val BrandYellow = Color(0xFFD8CB4C)
+val BrandLime = Color(0xFFBECC4D)
+val LimeGreen = BrandLime // Semantic alias for consistency
 
+// ================================
+// Primary Greens
+// ================================
+val PrimaryGreen = Color(0xFF96C562)
+val SecondaryGreen = Color(0xFF89BA52)
+val LightGreen = Color(0xFFB4D291)
+val SoftGreen = Color(0xFFD2DAB3)
+val DarkGreen = Color(0xFF2B7A2C)
+val ForestGreen = Color(0xFF5B9939)
+val SuccessGreen = Color(0xFF2E7D32)
+
+
+// ================================
+// Backgrounds
+// ================================
+val Cream = Color(0xFFF7F4E3)
+val SurfaceCream = Color(0xFFF3F1E1)
+val OffWhite = Color(0xFFFFFFFF)
+
+
+// ================================
+// Text
+// ================================
+val AlmostBlack = Color(0xFF1D1B19)
+val DarkGray = Color(0xFF64625B)
+val MediumGray = Color(0xFFA5A898)
+val LightGray = Color(0xFFD7D7D7)
+val TextDisabled = Color(0xFF616161)
+val TextDisabledSecondary = Color(0xFF9E9E9E)
+
+
+// ================================
+// Supporting Colors
+// ================================
+val SoftPink = Color(0xFFF2B9D8)
+val SoftBeige = Color(0xFFE9DBA1)
+val ShadowBrown = Color(0xFF423C38)
+
+
+// ================================
+// UI Elements
+// ================================
+val ActiveCardStart = Color(0xFF9CCC65)
+val ActiveCardEnd = Color(0xFF7CB342)
+val InactiveCardStart = Color(0xFFE0E0E0)
+val InactiveCardEnd = Color(0xFFBDBDBD)
+
+val ButtonShadowEnabled = Color(0xFF4A7C20)
+val ButtonShadowDisabled = Color(0xFF9E9E9E)
+val ButtonTopStart = Color(0xFFFFFFFF)
+val ButtonTopEnd = Color(0xFFE8E8E8)
+val ButtonDisabledStart = Color(0xFFDDDDDD)
+val ButtonDisabledEnd = Color(0xFFCCCCCC)
+val ButtonTextEnabled = Color(0xFF1B5E20)
+val ButtonTextDisabled = Color(0xFF8E8E8E)
+
+// ================================
+// Utility
+// ================================
 val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF000000)
 
-/* ---------- Backgrounds & Surfaces ---------- */
-
-val BackgroundPrimary = Color(0xFFFFFFFF)
-val BackgroundSecondary = Color(0xFFF7F8FA)
-val BackgroundTertiary = Color(0xFFF2F3F5)
-
-val SurfaceCard = Color(0xFFFFFFFF)
-val SurfaceMuted = Color(0xFFF6F7F9)
-val DividerLight = Color(0xFFE9EBEF)
-
-/* ---------- Brand / Primary ---------- */
-
-val BrandPurple = Color(0xFF6C63FF)
-val BrandPurpleLight = Color(0xFF9B8CFF)
-
-val AccentPink = Color(0xFFFF8ED4)
-val AccentPinkLight = Color(0xFFFFB6E6)
-
-val AccentYellow = Color(0xFFFFC83D)
-val AccentOrange = Color(0xFFFFB703)
-
-val AccentMint = Color(0xFF4CD4B0)
-val AccentMintLight = Color(0xFFB8F2E6)
-
-/* ---------- Pastel Supporting Colors ---------- */
-
-val PastelLavender = Color(0xFFCDB4FF)
-val PastelBlue = Color(0xFFA0C4FF)
-val PastelPeach = Color(0xFFFFD6A5)
-val PastelCoral = Color(0xFFFF9F9F)
-
-/* ---------- Text ---------- */
-
-val TextPrimary = Color(0xFF1F2937)
-val TextSecondary = Color(0xFF4B5563)
-val TextTertiary = Color(0xFF6B7280)
-
-val TextHint = Color(0xFF9CA3AF)
-val TextDisabled = Color(0xFFD1D5DB)
-val TextOnColor = Color(0xFFFFFFFF)
-
-/* ---------- Status ---------- */
-
-val SuccessGreen = Color(0xFF22C55E)
-val WarningOrange = Color(0xFFF97316)
-val ErrorRed = Color(0xFFEF4444)
-val InfoBlue = Color(0xFF3B82F6)
-
-/* ---------- Gradients ---------- */
-
-val GradientPurpleStart = Color(0xFF6C63FF)
-val GradientPurpleEnd = Color(0xFF9B8CFF)
-
-val GradientPinkStart = Color(0xFFFF8ED4)
-val GradientPinkEnd = Color(0xFFFFB6E6)
-
-val GradientSunsetStart = Color(0xFFFFC83D)
-val GradientSunsetEnd = Color(0xFFFF8ED4)
-
-
-
-val DarkGreen = Color(0xFF8AB62D)
-val NewGreen = Color(0xFF2E7D32)
-val LimeGreen = Color(0xFFC4CE48)
-val SoftYellow = Color(0xFFFFECA5)
-val GoldenYellow = Color(0xFF201D1E)
-val DeepAmber = Color(0xFFDF9A06)
-
-// Accent Colors
-val CoralRed = Color(0xFFE57373)
-val SoftPink = Color(0xFFF6BADC)
-val SoftBlue = Color(0xFFC8DAF8)
-val Blue = Color(0xFF82A9EA)
-val DarkBlue = Color(0xFF679AEE)
-
-// Backgrounds / Surfaces
-val Cream = Color(0xFFFBF5E7)
-val DarkCream = Color(0xFFF9F7F0)
-val OffWhite = Color(0xFFF0ECDE)
-
-// Neutrals
-val AlmostBlack = Color(0xFF201D1E)
-val MediumGray = Color(0xFF6F6F6F)
+// ================================
+// Missing UI Colors
+// ================================
+val Blue = Color(0xFF4A6572)
+val SoftBlue = Color(0xFFE1E8EB)
+val DarkBlue = Color(0xFF232F34)
+val CoralRed = Color(0xFFE53935)
+val DeepAmber = Color(0xFFFF8840)
+val GoldenYellow = Color(0xFFFF8C00)
+val NewGreen = Color(0xFF388E3C)
+val AccentYellow = Color(0xFFFDD835)

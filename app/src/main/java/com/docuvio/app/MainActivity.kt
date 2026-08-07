@@ -51,6 +51,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -188,7 +190,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Cream),
+                                .background(MaterialTheme.colorScheme.background),
                             contentAlignment = Alignment.Center
                         ) {
                             DocuvioLoadingAnimation()
@@ -279,10 +281,10 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
 @Composable
 fun FixSystemBars(route: String?) {
-
+    val darkTheme = isSystemInDarkTheme()
     val view = LocalView.current
 
-    DisposableEffect(route) {
+    DisposableEffect(route, darkTheme) {
 
         val window = (view.context as Activity).window
 
@@ -291,23 +293,23 @@ fun FixSystemBars(route: String?) {
         val controller = WindowCompat.getInsetsController(window, view)
 
         // 🔥Top bar Icon Changer
-        controller.isAppearanceLightStatusBars = true
-        controller.isAppearanceLightNavigationBars = true
+        controller.isAppearanceLightStatusBars = !darkTheme
+        controller.isAppearanceLightNavigationBars = !darkTheme
 
         // 🔥 EXTRA FORCE (handles dialog override)
         window.decorView.post {
-            controller.isAppearanceLightStatusBars = true
+            controller.isAppearanceLightStatusBars = !darkTheme
         }
 
         onDispose { }
     }
 
-    // Black status bar background
+    // Theme-aware status bar background
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
-            .background(Color.Black)
+            .background(MaterialTheme.colorScheme.background)
     )
 }
 
@@ -336,7 +338,7 @@ fun DocuvioLoadingAnimation() {
     val lime  = Color(0xFFC8D837)
 
     Box(
-        Modifier.fillMaxSize().background(Cream),
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -367,7 +369,7 @@ fun DocuvioLoadingAnimation() {
                         .width(80.dp)
                         .height(2.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(Color.Black.copy(alpha = 0.08f))
+                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
                 ) {
                     val fillWidth = 0.4f // 40% of track
                     val offset = barProgress * (1f + fillWidth) - fillWidth
@@ -394,7 +396,7 @@ fun DocuvioLoadingAnimation() {
                     text = "DOCUVIO",
                     fontSize = 11.sp,
                     letterSpacing = 5.sp,
-                    color = Color.Black.copy(alpha = 0.25f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.25f),
                     fontWeight = FontWeight.Normal
                 )
             }
