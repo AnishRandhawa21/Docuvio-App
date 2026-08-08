@@ -51,7 +51,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.draw.clip
@@ -281,10 +280,9 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
 @Composable
 fun FixSystemBars(route: String?) {
-    val darkTheme = isSystemInDarkTheme()
     val view = LocalView.current
 
-    DisposableEffect(route, darkTheme) {
+    DisposableEffect(route) {
 
         val window = (view.context as Activity).window
 
@@ -292,13 +290,13 @@ fun FixSystemBars(route: String?) {
 
         val controller = WindowCompat.getInsetsController(window, view)
 
-        // 🔥Top bar Icon Changer
-        controller.isAppearanceLightStatusBars = !darkTheme
-        controller.isAppearanceLightNavigationBars = !darkTheme
+        // 🔥Top bar Icon Changer - Always Light Mode (Dark Icons)
+        controller.isAppearanceLightStatusBars = true
+        controller.isAppearanceLightNavigationBars = true
 
         // 🔥 EXTRA FORCE (handles dialog override)
         window.decorView.post {
-            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightStatusBars = true
         }
 
         onDispose { }

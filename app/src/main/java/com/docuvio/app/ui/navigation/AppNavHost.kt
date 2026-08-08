@@ -27,7 +27,6 @@ import com.docuvio.app.di.AppContainer
 import com.docuvio.app.ui.auth.LoginScreen
 import com.docuvio.app.ui.auth.SignupScreen
 import com.docuvio.app.ui.home.HomeScreen
-import com.docuvio.app.ui.order.CreateOrderScreen
 import com.docuvio.app.ui.order.WalkInOrderScreen
 import com.docuvio.app.ui.orders.OrdersScreen
 import com.docuvio.app.ui.profile.DeleteAccountScreen
@@ -42,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.docuvio.app.ui.order.schedulecomponents.CreateOrderScreen
 
 // ── Which routes are stack screens (pushed on top of tabs) ───
 private val STACK_ROUTES = setOf(

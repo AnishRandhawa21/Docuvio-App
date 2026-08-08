@@ -1,6 +1,7 @@
 package com.docuvio.app.ui.home
 
 import android.util.Log
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +23,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -102,6 +106,23 @@ fun HomeScreen(
     // ── Multiple Click Prevention ────────────────────
     var isNavigating by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val scrollState = rememberLazyListState()
+
+    val headerAlpha by remember {
+        derivedStateOf {
+            if (scrollState.firstVisibleItemIndex > 0) 0f
+            else (1f - (scrollState.firstVisibleItemScrollOffset.toFloat() / 500f)).coerceIn(0f, 1f)
+        }
+    }
+
+    val headerTranslationY by remember {
+        derivedStateOf {
+            if (scrollState.firstVisibleItemIndex > 0) -40f
+            else (-(scrollState.firstVisibleItemScrollOffset.toFloat() / 12f)).coerceIn(-40f, 0f)
+        }
+    }
+
+    // ────────────────────────────────────────────────
 
     val handleNavigate = { action: (String) -> Unit, shopId: String ->
         if (!isNavigating) {
@@ -130,6 +151,7 @@ fun HomeScreen(
         }
     ) {
         LazyColumn(
+            state = scrollState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
@@ -138,16 +160,22 @@ fun HomeScreen(
         ) {
             // --- SCROLLABLE HEADER (Hides on scroll) ---
             item {
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Docuvio",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = Manrope,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(Modifier.height(14.dp))
+                AnimatedVisibility(
+                    visible = searchQuery.isBlank() && selectedFilter == ShopFilter.ALL,
+                    enter = expandVertically(animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)),
+                    exit = shrinkVertically(animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .graphicsLayer {
+                                alpha = headerAlpha
+                                translationY = headerTranslationY
+                            }
+                    ) {
+                        Spacer(Modifier.height(8.dp))
+                        HomeBrandBanner()
+                    }
                 }
             }
 
@@ -157,12 +185,14 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.background,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        FancySearchBar(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            onClearClick = { searchQuery = "" }
-                        )
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                            FancySearchBar(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                onClearClick = { searchQuery = "" }
+                            )
+                        }
                         Spacer(Modifier.height(12.dp))
                         FilterChipRow(
                             selected = selectedFilter,
@@ -179,7 +209,7 @@ fun HomeScreen(
 
             when {
                 uiState.shops.isEmpty() && uiState.error == null -> {
-                    items(6) { 
+                    items(6) {
                         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                             SkeletonShopCard()
                         }
@@ -229,8 +259,12 @@ fun HomeScreen(
                 }
 
                 else -> {
-                    items(filteredShops) { shop ->
-                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    items(filteredShops, key = { it.id }) { shop ->
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .animateItem()
+                        ) {
                             ShopCard(
                                 shop = shop,
                                 onScheduleClick = { handleNavigate(onScheduleClick, it) },
@@ -245,6 +279,24 @@ fun HomeScreen(
 }
 
 // --------------------------------------------------
+// 🎨 HOME BRAND BANNER — now a single pre-made image,
+// with its own entrance fade/slide-in animation,
+// independent of the scroll-linked header fade above.
+// --------------------------------------------------
+@Composable
+fun HomeBrandBanner() {
+    Image(
+        painter = painterResource(R.drawable.banner1),
+        contentDescription = "Docuvio — find nearby print shops",
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(2.57f) // match your exported banner's width:height ratio — adjust if yours differs
+            .clip(RoundedCornerShape(24.dp)),
+        contentScale = ContentScale.FillWidth
+    )
+}
+
+// --------------------------------------------------
 // 🧭 FILTER CHIP ROW
 // --------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
@@ -254,20 +306,41 @@ fun FilterChipRow(
     onSelect: (ShopFilter) -> Unit
 ) {
     LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(ShopFilter.entries.toTypedArray()) { filter ->
             val isSelected = filter == selected
 
+            val backgroundColor by animateColorAsState(
+                targetValue = if (isSelected) SuccessGreen else MaterialTheme.colorScheme.surfaceVariant,
+                label = "chipBackground"
+            )
+            val contentColor by animateColorAsState(
+                targetValue = if (isSelected) White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                label = "chipContent"
+            )
+            val scale by animateFloatAsState(
+                targetValue = if (isSelected) 1.05f else 1f,
+                label = "chipScale"
+            )
+
             Surface(
                 modifier = Modifier
                     .height(38.dp)
-                    .clickable { onSelect(filter) },
-                shape = RoundedCornerShape(12.dp),
-                color = if (isSelected) SuccessGreen else MaterialTheme.colorScheme.surfaceVariant,
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onSelect(filter) },
+                shape = RoundedCornerShape(24.dp),
+                color = backgroundColor,
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -275,7 +348,7 @@ fun FilterChipRow(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Manrope,
-                        color = if (isSelected) White else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        color = contentColor
                     )
                 }
             }
@@ -296,12 +369,11 @@ fun FancySearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 3.dp,
-                shape = RoundedCornerShape(18.dp),
-                spotColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)
+                elevation = 2.dp,
+                shape = RoundedCornerShape(28.dp),
+                spotColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f)
             ),
-        shape = RoundedCornerShape(18.dp),
-        // surfaceVariant instead of surface — softer tonal fill, no longer stark white
+        shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 1.dp
     ) {
@@ -309,8 +381,8 @@ fun FancySearchBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 16.dp)
+                .height(60.dp)
+                .padding(horizontal = 20.dp)
         ) {
             Icon(
                 Icons.Default.Search,
@@ -370,7 +442,6 @@ fun SkeletonShopCard() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // Single flat tone, just one step off background — no gradient, no clash
                 .background(SurfaceCream)
                 .background(shimmerBrush)
                 .padding(20.dp)
@@ -463,7 +534,7 @@ fun rememberShimmerBrush(): Brush {
     return Brush.linearGradient(
         colors = listOf(
             Color.Transparent,
-            White.copy(alpha = 0.15f),   // much lower alpha — a faint glint, not a flash
+            White.copy(alpha = 0.15f),
             Color.Transparent
         ),
         start = Offset(x - 300f, 0f),

@@ -123,24 +123,24 @@ fun DeleteAccountScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 52.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
+                    .padding(top = 20.dp, bottom = 24.dp, start = 20.dp, end = 20.dp)
             ) {
-                IconButton(
-                    onClick = { onBack() },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(AlmostBlack.copy(alpha = 0.06f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = AlmostBlack,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
+//                IconButton(
+//                    onClick = { onBack() },
+//                    modifier = Modifier
+//                        .size(36.dp)
+//                        .clip(CircleShape)
+//                        .background(AlmostBlack.copy(alpha = 0.06f))
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.ArrowBack,
+//                        contentDescription = "Back",
+//                        tint = AlmostBlack,
+//                        modifier = Modifier.size(17.dp)
+//                    )
+//                }
 
-                Spacer(Modifier.height(20.dp))
+//                Spacer(Modifier.height(20.dp))
 
                 Text(
                     text = "Delete Account",
@@ -285,7 +285,7 @@ fun DeleteAccountScreen(
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = LimeGreen,
                             unfocusedBorderColor = LightGray,
-                            focusedContainerColor = White,
+                            focusedContainerColor = SurfaceCream,   // was White
                             unfocusedContainerColor = SurfaceCream,
                             focusedLabelColor = LimeGreen,
                             cursorColor = LimeGreen
@@ -409,8 +409,8 @@ fun DeleteAccountScreen(
 private fun DeleteSectionCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),   // single consistent radius across all cards
-        color = White,
+        shape = RoundedCornerShape(18.dp),
+        color = SurfaceCream,   // was White
         border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.06f))
     ) {
         Box(modifier = Modifier.padding(16.dp)) {
@@ -419,7 +419,6 @@ private fun DeleteSectionCard(content: @Composable () -> Unit) {
     }
 }
 
-// iOS-style grouped-list section header: uppercase, small, muted, left-inset to match card padding
 @Composable
 private fun SectionHeader(text: String) {
     Text(

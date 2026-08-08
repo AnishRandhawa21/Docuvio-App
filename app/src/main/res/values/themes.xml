@@ -2,10 +2,10 @@
 <resources>
 
     <style name="Theme.Docuvio"
-        parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        parent="Theme.MaterialComponents.Light.NoActionBar">
 
         <!-- Match your app's actual background color -->
-        <item name="android:windowBackground">#151419</item>
+        <item name="android:windowBackground">#F7F4E3</item>
 
         <!-- Prevent white flash during activity transitions -->
         <item name="android:windowActivityTransitions">true</item>

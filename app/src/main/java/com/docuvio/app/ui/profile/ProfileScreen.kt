@@ -73,11 +73,11 @@ fun ProfileScreen(
                     enabled = !isLoggingOut,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CoralRed,
-                        contentColor = Color.White
+                        contentColor = White
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("Logout", fontWeight = FontWeight.Bold)
+                    Text("Logout", fontWeight = FontWeight.ExtraBold)
                 }
             },
             dismissButton = {
@@ -85,7 +85,7 @@ fun ProfileScreen(
                     onClick = { showLogoutDialog = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = AlmostBlack)
                 ) {
-                    Text("Cancel", fontWeight = FontWeight.SemiBold)
+                    Text("Cancel", fontWeight = FontWeight.Bold)
                 }
             },
             shape = RoundedCornerShape(24.dp)
@@ -103,18 +103,24 @@ fun ProfileScreen(
                 Text(
                     text = "Profile",
                     style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold,
                     color = AlmostBlack,
                     modifier = Modifier.align(Alignment.CenterStart)
                 )
 
                 IconButton(
                     onClick = onDeleteClick,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(CoralRed.copy(alpha = 0.08f))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Delete Account",
-                        tint = CoralRed.copy(alpha = 0.8f)
+                        tint = CoralRed,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -128,9 +134,8 @@ fun ProfileScreen(
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Flat Profile Header
             ProfileHeader(userName = userName ?: "User")
 
             Spacer(modifier = Modifier.height(36.dp))
@@ -146,7 +151,7 @@ fun ProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Account Section
             ProfileSection(title = "Account") {
@@ -162,12 +167,11 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // App Version Footer
             Text(
                 text = "Docuvio v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = AlmostBlack.copy(alpha = 0.4f),
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -179,17 +183,17 @@ fun ProfileHeader(userName: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Avatar - Flat design
+        // Avatar — SurfaceCream instead of white, warmer/on-brand
         Surface(
             modifier = Modifier.size(100.dp),
             shape = CircleShape,
-            color = Color.White,
-            border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.1f))
+            color = SurfaceCream,
+            border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.08f))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(SoftBlue.copy(alpha = 0.3f)),
+                    .background(SoftBlue.copy(alpha = 0.35f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -220,21 +224,21 @@ fun ProfileSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
+        // iOS-style uppercase section header — matches DeleteAccountScreen / FeedbackScreen
         Text(
             text = title.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = AlmostBlack.copy(alpha = 0.5f),
+            style = MaterialTheme.typography.labelSmall,
+            color = DarkGray.copy(alpha = 0.55f),
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+            letterSpacing = 0.8.sp,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
         )
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.5.dp, AlmostBlack.copy(alpha = 0.08f))
-            // Removed shadowElevation for flat look
+            shape = RoundedCornerShape(18.dp),   // matches card radius used across your other profile screens
+            color = SurfaceCream,                 // was Color.White — now a warm off-white
+            border = BorderStroke(1.dp, AlmostBlack.copy(alpha = 0.06f))
         ) {
             Column(content = content)
         }
@@ -260,7 +264,7 @@ fun ProfileItem(
         Surface(
             modifier = Modifier.size(44.dp),
             shape = RoundedCornerShape(12.dp),
-            color = iconColor.copy(alpha = 0.1f)
+            color = iconColor.copy(alpha = 0.12f)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -278,12 +282,13 @@ fun ProfileItem(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = AlmostBlack
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
                 color = AlmostBlack.copy(alpha = 0.5f)
             )
         }

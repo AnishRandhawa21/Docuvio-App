@@ -47,6 +47,7 @@ import java.io.FileOutputStream
 import androidx.compose.ui.text.input.KeyboardType
 import com.docuvio.app.ui.order.utils.WalkInFloatingPayBar
 import androidx.compose.material.icons.filled.Warning
+import com.docuvio.app.ui.order.schedulecomponents.startRazorpayPayment
 import kotlinx.coroutines.launch
 
 // ── Stage metadata ────────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ private fun FormView(
                     .clip(RoundedCornerShape(16.dp))
                     .background(
                         when {
-                            uiState.isConverting -> DarkBlue.copy(alpha = 0.04f)
+                            uiState.isConverting -> PrimaryGreen.copy(alpha = 0.06f)
                             uiState.selectedFile != null -> Color.Transparent
                             else -> AlmostBlack.copy(alpha = 0.04f)
                         }
@@ -250,8 +251,8 @@ private fun FormView(
                     .border(
                         width = if (uiState.selectedFile != null) 2.dp else 1.5.dp,
                         color = when {
-                            uiState.isConverting -> DarkBlue.copy(alpha = 0.4f)
-                            uiState.selectedFile != null -> DarkBlue.copy(alpha = 0.7f)
+                            uiState.isConverting -> PrimaryGreen.copy(alpha = 0.4f)
+                            uiState.selectedFile != null -> PrimaryGreen
                             uiState.conversionError != null -> CoralRed.copy(alpha = 0.7f)
                             else -> AlmostBlack.copy(alpha = 0.3f)
                         },
@@ -267,14 +268,14 @@ private fun FormView(
                             verticalArrangement = Arrangement.Center
                         ) {
                             CircularProgressIndicator(
-                                color = DarkBlue,
+                                color = PrimaryGreen,
                                 strokeWidth = 3.dp,
                                 modifier = Modifier.size(36.dp)
                             )
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 "Converting DOCX → PDF",
-                                color = DarkBlue,
+                                color = PrimaryGreen,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
@@ -363,12 +364,12 @@ private fun FormView(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(DarkBlue.copy(alpha = 0.1f)),
+                                    .background(PrimaryGreen.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Default.Add, null,
-                                    tint = DarkBlue,
+                                    tint = PrimaryGreen,
                                     modifier = Modifier.size(30.dp)
                                 )
                             }
@@ -397,8 +398,8 @@ private fun FormView(
                         .fillMaxWidth()
                         .padding(top = 12.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkBlue.copy(alpha = 0.04f))
-                        .border(1.dp, DarkBlue.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                        .background(PrimaryGreen.copy(alpha = 0.05f))
+                        .border(1.dp, PrimaryGreen.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -413,21 +414,21 @@ private fun FormView(
                             Text(
                                 if (baseAmount < 100) "under ₹100" else "₹100+",
                                 fontSize = 10.sp,
-                                color = DarkBlue.copy(alpha = 0.6f),
+                                color = ForestGreen.copy(alpha = 0.8f),
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(DarkBlue.copy(alpha = 0.08f))
+                                    .background(PrimaryGreen.copy(alpha = 0.1f))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                         Text("+ ₹ $convenienceFee", fontSize = 14.sp, color = AlmostBlack, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.height(10.dp))
-                    HorizontalDivider(color = DarkBlue.copy(alpha = 0.1f), thickness = 1.dp)
+                    HorizontalDivider(color = PrimaryGreen.copy(alpha = 0.15f), thickness = 1.dp)
                     Spacer(Modifier.height(10.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AlmostBlack)
-                        Text("₹ $finalTotal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = DarkBlue)
+                        Text("₹ $finalTotal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = PrimaryGreen)
                     }
                 }
             }
@@ -439,10 +440,10 @@ private fun FormView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (uiState.amount.isNotBlank()) DarkBlue.copy(alpha = 0.05f) else Color.Transparent)
+                    .background(if (uiState.amount.isNotBlank()) LightGreen.copy(alpha = 0.15f) else SurfaceCream)
                     .border(
                         width = if (uiState.amount.isNotBlank()) 2.dp else 1.5.dp,
-                        color = if (uiState.amount.isNotBlank()) DarkBlue.copy(alpha = 0.7f) else AlmostBlack.copy(alpha = 0.3f),
+                        color = if (uiState.amount.isNotBlank()) PrimaryGreen else PrimaryGreen.copy(alpha = 0.3f),
                         shape = RoundedCornerShape(12.dp)
                     )
                     .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -450,7 +451,7 @@ private fun FormView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "₹", fontSize = 20.sp, fontWeight = FontWeight.Bold,
-                        color = if (uiState.amount.isNotBlank()) DarkBlue else MediumGray,
+                        color = if (uiState.amount.isNotBlank()) PrimaryGreen else MediumGray,
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     BasicTextField(
@@ -516,11 +517,11 @@ private fun ProcessingView(
         ) { failed ->
             Box(
                 modifier = Modifier.size(80.dp).clip(CircleShape)
-                    .background(if (failed) Color(0xFFFFEDED) else DarkBlue.copy(alpha = 0.1f)),
+                    .background(if (failed) Color(0xFFFFEDED) else PrimaryGreen.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 if (failed) Icon(Icons.Default.Close, null, tint = Color(0xFFD32F2F), modifier = Modifier.size(36.dp))
-                else CircularProgressIndicator(color = DarkBlue, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
+                else CircularProgressIndicator(color = PrimaryGreen, strokeWidth = 3.dp, modifier = Modifier.size(36.dp))
             }
         }
 
@@ -575,7 +576,7 @@ private fun ProcessingView(
                 if (index < STEPS.lastIndex) {
                     Box(
                         modifier = Modifier.padding(start = 34.dp).width(2.dp).height(16.dp)
-                            .background(if (index < currentIndex) DarkBlue.copy(alpha = 0.4f) else AlmostBlack.copy(alpha = 0.12f))
+                            .background(if (index < currentIndex) PrimaryGreen.copy(alpha = 0.4f) else AlmostBlack.copy(alpha = 0.12f))
                     )
                 }
             }
@@ -588,7 +589,7 @@ private fun ProcessingView(
                 onClick = onRetry,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DarkBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
             ) {
                 Text("Try Again", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             }
@@ -625,8 +626,8 @@ private fun PStepRow(label: String, state: PStepState, progress: Float?) {
                 .scale(if (state == PStepState.Active) pulse else 1f)
                 .clip(CircleShape)
                 .background(when (state) {
-                    PStepState.Done    -> DarkBlue
-                    PStepState.Active  -> DarkBlue.copy(alpha = 0.15f)
+                    PStepState.Done    -> PrimaryGreen
+                    PStepState.Active  -> PrimaryGreen.copy(alpha = 0.15f)
                     PStepState.Failed  -> Color(0xFFFFEDED)
                     PStepState.Pending -> AlmostBlack.copy(alpha = 0.08f)
                 }),
@@ -634,7 +635,7 @@ private fun PStepRow(label: String, state: PStepState, progress: Float?) {
         ) {
             when (state) {
                 PStepState.Done    -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                PStepState.Active  -> CircularProgressIndicator(color = DarkBlue, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                PStepState.Active  -> CircularProgressIndicator(color = PrimaryGreen, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                 PStepState.Failed  -> Icon(Icons.Default.Close, null, tint = Color(0xFFD32F2F), modifier = Modifier.size(14.dp))
                 PStepState.Pending -> Unit
             }
@@ -657,7 +658,7 @@ private fun PStepRow(label: String, state: PStepState, progress: Float?) {
                 LinearProgressIndicator(
                     progress = { progress },
                     modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
-                    color = DarkBlue, trackColor = DarkBlue.copy(alpha = 0.15f)
+                    color = PrimaryGreen, trackColor = PrimaryGreen.copy(alpha = 0.15f)
                 )
             }
         }
@@ -668,9 +669,9 @@ private fun PStepRow(label: String, state: PStepState, progress: Float?) {
             exit  = scaleOut()
         ) {
             Text(
-                "Done", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = DarkBlue,
+                "Done", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = PrimaryGreen,
                 modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                    .background(DarkBlue.copy(alpha = 0.1f))
+                    .background(PrimaryGreen.copy(alpha = 0.1f))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             )
         }
