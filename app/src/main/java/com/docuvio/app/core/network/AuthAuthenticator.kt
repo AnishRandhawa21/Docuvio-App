@@ -9,53 +9,75 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
 
+/**
+ * 🔄 AuthAuthenticator
+ * Automatically handles 401 Unauthorized responses by attempting to refresh the token.
+ */
 class AuthAuthenticator(
     private val tokenManager: TokenManager,
     private val authApi: AuthApi
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {
-
-        // ❌ Prevent infinite retry loop
+        // ❌ Prevent infinite retry loop (max 2 attempts per request)
         if (responseCount(response) >= 2) return null
 
-        // 🔑 Get refresh token
+        // 🔑 Get current tokens
+        val currentAccessToken = tokenManager.getTokenBlocking()
         val refreshToken = tokenManager.getRefreshTokenBlocking()
             ?: return null
 
-        return try {
-            // 🔄 Call refresh API (SYNC call required)
-            val refreshResponse = authApi.refreshToken(
-                RefreshTokenRequest(refreshToken)
-            ).execute()
-            println("🔄 REFRESH TOKEN CALLED")
+        // 🔒 Synchronized block to prevent multiple simultaneous refresh calls
+        synchronized(this) {
+            val latestAccessToken = tokenManager.getTokenBlocking()
 
-            // ❌ If refresh fails → logout flow
-            if (!refreshResponse.isSuccessful) return null
+            // ⚡ Check if the token was already refreshed by another concurrent request
+            val tokenToUse = if (latestAccessToken != currentAccessToken && !latestAccessToken.isNullOrBlank()) {
+                latestAccessToken
+            } else {
+                // 🔄 Perform actual refresh call (Synchronous call required by Authenticator)
+                try {
+                    val refreshResponse = authApi.refreshToken(
+                        RefreshTokenRequest(refreshToken)
+                    ).execute()
 
-            val body = refreshResponse.body() ?: return null
+                    if (refreshResponse.isSuccessful) {
+                        val body = refreshResponse.body()
+                        if (body != null) {
+                            val newAccess = body.data.access_token
+                            val newRefresh = body.data.refresh_token
 
-            val newAccess = body.data.access_token
-            val newRefresh = body.data.refresh_token
-
-            // 💾 Save new tokens
-            runBlocking {
-                tokenManager.saveToken(newAccess)
-                tokenManager.saveRefreshToken(newRefresh)
+                            // 💾 Save new tokens
+                            runBlocking {
+                                tokenManager.saveToken(newAccess)
+                                tokenManager.saveRefreshToken(newRefresh)
+                            }
+                            android.util.Log.d("AUTH", "🔄 Token refreshed successfully")
+                            newAccess
+                        } else null
+                    } else {
+                        android.util.Log.e("AUTH", "❌ Refresh failed: ${refreshResponse.code()}")
+                        null
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AUTH", "❌ Refresh exception", e)
+                    null
+                }
             }
 
-            // 🔁 Retry original request with new token
-            response.request.newBuilder()
-                .header("Authorization", "Bearer $newAccess")
-                .build()
-
-        } catch (e: Exception) {
-            null
+            // 🔁 If we have a new/latest token, retry the original request
+            return if (!tokenToUse.isNullOrBlank()) {
+                response.request.newBuilder()
+                    .header("Authorization", "Bearer $tokenToUse")
+                    .build()
+            } else {
+                null // Give up, will trigger the 401 logout in ApiClient
+            }
         }
     }
 
     /**
-     * 🔁 Prevent infinite retry loop
+     * Helper to track how many times this specific request has been retried.
      */
     private fun responseCount(response: Response): Int {
         var count = 1

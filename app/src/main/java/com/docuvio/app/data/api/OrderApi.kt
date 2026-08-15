@@ -15,11 +15,6 @@ interface OrderApi {
         @Body request: CreateOrderRequest
     ): Response<ApiResponse<CreateOrderResponse>>
 
-    @POST("students/orders")
-    suspend fun createWalkInOrder(
-        @Body request: WalkInOrderRequest
-    ): Response<ApiResponse<CreateOrderResponse>>
-
 
     @Multipart
     @POST("files/upload")
@@ -42,10 +37,4 @@ interface OrderApi {
     suspend fun verifyPayment(
         @Body request: VerifyPaymentRequest
     ): Response<VerifyPaymentResponse>
-
-    @POST("students/orders/{orderId}/documents")
-    suspend fun attachWalkInDocument(
-        @Path("orderId") orderId: String,
-        @Body request: AttachWalkInDocument
-    ): Response<Unit>
 }

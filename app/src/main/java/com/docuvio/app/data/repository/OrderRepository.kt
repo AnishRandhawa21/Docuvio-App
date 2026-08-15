@@ -41,8 +41,8 @@ class OrderRepository(
             if (!response.isSuccessful) {
                 return mapErrorResponse(response.code())
             }
-            val body = response.body() ?: return Result.Error("Empty server response.")
-            Result.Success(body.data)
+            val data = response.body()?.data ?: return Result.Error("Empty server response.")
+            Result.Success(data)
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Create order exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
@@ -139,17 +139,28 @@ class OrderRepository(
 
     /* ---------------- GET ORDERS ---------------- */
 
-    suspend fun getOrders(): Result<OrdersResponse> {
+    suspend fun getOrders(): Result<List<Order>> {
         return try {
             val response = orderApi.getOrders()
             if (!response.isSuccessful) {
                 return mapErrorResponse(response.code())
             }
             val body = response.body() ?: return Result.Error("Empty response")
-            Result.Success(body)
+            Result.Success(body.data)
         } catch (e: Exception) {
             Log.e("ORDER_REPO", "Get orders exception: ${e.message}", e)
             Result.Error(mapNetworkError(e))
+        }
+    }
+
+    suspend fun getOrderStatus(orderId: String): Result<Order?> {
+        return when (val result = getOrders()) {
+            is Result.Success -> {
+                val order = result.data.find { it.id == orderId }
+                Result.Success(order)
+            }
+            is Result.Error -> Result.Error(result.message)
+            else -> Result.Error("Failed to fetch order status")
         }
     }
 
@@ -168,7 +179,7 @@ class OrderRepository(
             }
 
             val body = apiResponse.data
-            if (body.id.isNullOrBlank() || body.amount == null || body.amount == 0) {
+            if (body == null || body.id.isNullOrBlank() || body.amount == null || body.amount == 0) {
                 return Result.Error("Invalid payment response from server")
             }
 
@@ -200,39 +211,6 @@ class OrderRepository(
         }
     }
 
-    /* ---------------- WALK-IN ---------------- */
-
-    suspend fun createWalkInOrder(shopId: String, notes: String?): Result<CreateOrderResponse> {
-        return try {
-            val response = orderApi.createWalkInOrder(WalkInOrderRequest(shopId = shopId, notes = notes))
-            if (!response.isSuccessful) return mapErrorResponse(response.code())
-            val body = response.body() ?: return Result.Error("Empty response")
-            Result.Success(body.data)
-        } catch (e: Exception) {
-            Result.Error(mapNetworkError(e))
-        }
-    }
-
-    suspend fun attachWalkInDocument(
-        orderId: String,
-        fileKey: String,
-        fileName: String,
-        manualPrice: Int
-    ): Result<Unit> {
-        return try {
-            val response = orderApi.attachWalkInDocument(
-                orderId,
-                AttachWalkInDocument(fileKey, fileName, 1, manualPrice)
-            )
-            if (!response.isSuccessful) return mapErrorResponse(response.code())
-            Result.Success(Unit)
-        } catch (e: Exception) {
-            Result.Error(mapNetworkError(e))
-        }
-    }
-
-    /* ---------------- ERROR MAPPERS ---------------- */
-
     private fun <T> mapErrorResponse(code: Int): Result<T> {
         return when (code) {
             401, 403 -> Result.Error("Session expired. Please login again.")
@@ -249,7 +227,7 @@ class OrderRepository(
             is UnknownHostException  -> "No internet connection."
             is SocketTimeoutException -> "Connection timed out. Please try again."
             is IOException           -> "Network error. Please check your connection."
-            else                     -> "please Wait.."
+            else                     -> "Something went wrong. Please try again."
         }
     }
 }

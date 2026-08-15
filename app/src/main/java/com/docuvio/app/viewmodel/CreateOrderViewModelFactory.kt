@@ -8,6 +8,7 @@ import com.docuvio.app.data.repository.ShopRepository
 class CreateOrderViewModelFactory(
     private val shopRepository: ShopRepository,
     private val orderRepository: OrderRepository,
+    private val tokenManager: com.docuvio.app.core.auth.TokenManager,
     private val shopId: String
 ) : ViewModelProvider.Factory {
 
@@ -17,6 +18,7 @@ class CreateOrderViewModelFactory(
             return CreateOrderViewModel(
                 shopRepository = shopRepository,
                 orderRepository = orderRepository,
+                tokenManager = tokenManager,
                 shopId = shopId
             ) as T
         }

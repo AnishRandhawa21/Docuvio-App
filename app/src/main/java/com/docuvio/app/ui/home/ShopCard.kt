@@ -28,8 +28,7 @@ import androidx.compose.material.icons.outlined.ShoppingBag
 @Composable
 fun ShopCard(
     shop: Shop,
-    onScheduleClick: (String) -> Unit,
-    onOrderNowClick: (String) -> Unit
+    onScheduleClick: (String) -> Unit
 ) {
     val capabilities = ShopStatusResolver.resolve(shop)
     val walkInEnabled = capabilities.walkInEnabled
@@ -45,7 +44,7 @@ fun ShopCard(
     // Distinct pill color per status, using colors already in your theme
     val statusColor = when {
         walkInEnabled -> SuccessGreen
-        onlineEnabled -> Blue     // 0xFF423C38 — dark warm neutral, calm against green
+        onlineEnabled -> OnlineBlue     // Fresh Cyan for online status - looks great on green!
         else -> DarkGray
     }
 
@@ -168,13 +167,6 @@ fun ShopCard(
                     icon = Icons.Outlined.CalendarMonth,
                     enabled = onlineEnabled,
                     onClick = { onScheduleClick(shop.id) },
-                    modifier = Modifier.weight(1f)
-                )
-                ImageCompatible3DButton(
-                    text = "Order Now",
-                    icon = Icons.Outlined.ShoppingBag,
-                    enabled = walkInEnabled,
-                    onClick = { onOrderNowClick(shop.id) },
                     modifier = Modifier.weight(1f)
                 )
             }

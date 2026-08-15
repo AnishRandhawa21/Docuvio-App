@@ -11,8 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
-import com.docuvio.app.BuildConfig
-import com.docuvio.app.ui.order.utils.DocxConverter
+import com.docuvio.app.data.api.DocxConverter
 import com.docuvio.app.utils.PdfUtils
 import kotlinx.coroutines.flow.update
 import java.text.SimpleDateFormat
@@ -22,9 +21,6 @@ import java.util.Locale
 import com.docuvio.app.ui.order.utils.PricingUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.asRequestBody
 
 /* ---------------- UI STATE ---------------- */
 
@@ -72,6 +68,7 @@ enum class OrderStep {
 class CreateOrderViewModel(
     private val shopRepository: ShopRepository,
     private val orderRepository: OrderRepository,
+    private val tokenManager: com.docuvio.app.core.auth.TokenManager,
     private val shopId: String
 ) : ViewModel() {
 
@@ -93,14 +90,27 @@ class CreateOrderViewModel(
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
                 when (val result = shopRepository.getPrintOptions(shopId)) {
-                    is Result.Success -> _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        printOptions = result.data,
-                        selectedPaperType = null,
-                        selectedColorMode = result.data.colorModes.firstOrNull(),
-                        selectedFinishType = null,
-                        currentStep = OrderStep.SELECT_OPTIONS
-                    )
+                    is Result.Success -> {
+                        val options = result.data
+                        val defaultPaper = options.paperTypes.find { it.name.equals("A4", ignoreCase = true) }
+                            ?: options.paperTypes.firstOrNull { it.name.lowercase() != "bond" }
+                        
+                        val defaultColor = options.colorModes.find { it.name.lowercase().contains("black") }
+                            ?: options.colorModes.firstOrNull { it.name.lowercase() != "bond" }
+
+                        val defaultFinish = options.finishTypes.find { it.name.equals("Standard", ignoreCase = true) }
+                            ?: options.finishTypes.firstOrNull { it.name.lowercase() != "bond" }
+
+                        _uiState.update { it.copy(
+                            isLoading = false,
+                            printOptions = options,
+                            selectedPaperType = defaultPaper,
+                            selectedColorMode = defaultColor,
+                            selectedFinishType = defaultFinish,
+                            currentStep = OrderStep.SELECT_OPTIONS
+                        ) }
+                        recalculatePricing()
+                    }
                     is Result.Error -> _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         error = result.message,
@@ -286,6 +296,9 @@ class CreateOrderViewModel(
 
             val orderId = orderResult.data.id
             currentOrderId = orderId
+            
+            // 💾 Persist for recovery if app is killed
+            tokenManager.savePendingOrderId(orderId, "standard")
 
             /* 2️⃣ UPLOAD FILE — pass resolved MIME type so backend gets correct Content-Type */
             _uiState.value = _uiState.value.copy(
@@ -393,6 +406,9 @@ class CreateOrderViewModel(
                 orderId
             )
             if (result is Result.Success) {
+                // ✅ Success! Clear the pending order from recovery
+                tokenManager.savePendingOrderId(null)
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     isSuccess = true,
@@ -520,12 +536,11 @@ class CreateOrderViewModel(
     } catch (_: Exception) { 0 }
 
     private fun recalculatePricing() {
-        val state = _uiState.value
-        val docPrice  = PricingUtils.calculateDocumentPrice(state)
-        val platform  = PricingUtils.calculatePlatformFee(docPrice)
-        val handling  = PricingUtils.calculateHandlingFee(state)
-        _uiState.update {
-            it.copy(
+        _uiState.update { state ->
+            val docPrice  = PricingUtils.calculateDocumentPrice(state)
+            val platform  = PricingUtils.calculatePlatformFee(docPrice)
+            val handling  = PricingUtils.calculateHandlingFee(state)
+            state.copy(
                 documentPrice = docPrice,
                 platformFee   = platform,
                 handlingFee   = handling,
@@ -534,44 +549,4 @@ class CreateOrderViewModel(
         }
     }
 
-    fun convertDocxToPdf(file: File): File {
-
-        val client = OkHttpClient()
-
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "file",
-                file.name,
-                file.asRequestBody("application/octet-stream".toMediaType())
-            )
-            .build()
-
-        val url = "${BuildConfig.CONVERTER_URL}/convert"
-
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("x-api-key", BuildConfig.CONVERTER_API_KEY)
-            .post(requestBody)
-            .build()
-
-        val response = client.newCall(request).execute()
-
-        if (!response.isSuccessful) {
-            throw Exception("Conversion failed: ${response.code}")
-        }
-
-        val pdfFile = File(
-            file.parent,
-            file.name.substringBeforeLast(".") + ".pdf"
-        )
-
-        response.body?.byteStream()?.use { input ->
-            pdfFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        } ?: throw Exception("Empty response body")
-
-        return pdfFile
-    }
 }

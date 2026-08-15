@@ -6,9 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.docuvio.app.core.auth.TokenManager
 import com.docuvio.app.data.repository.AuthRepository
 import com.docuvio.app.data.repository.Result
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
@@ -20,7 +18,8 @@ data class AuthUiState(
     val organisations: List<Organisation> = emptyList(),
     val selectedOrganisation: Organisation? = null,
     val error: String? = null,
-    val isSuccess: Boolean = false
+    val isSuccess: Boolean = false,
+    val activeSessionToken: String? = null
 )
 
 class AuthViewModel(
@@ -34,102 +33,66 @@ class AuthViewModel(
 
     init {
         loadOrganisations()
+        observeActiveSession()
+    }
+
+    private fun observeActiveSession() {
+        tokenManager.guestSessionTokenFlow
+            .onEach { token ->
+                _uiState.update { it.copy(activeSessionToken = token) }
+            }
+            .launchIn(viewModelScope)
     }
 
     /* ---------------- LOAD ORGANISATIONS ---------------- */
 
     fun loadOrganisations() {
         viewModelScope.launch {
-
-            _uiState.value = _uiState.value.copy(
-                isLoadingOrganisations = true,
-                error = null
-            )
-
+            _uiState.update { it.copy(isLoadingOrganisations = true, error = null) }
             when (val result = authRepository.getOrganisations()) {
-
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        organisations = result.data,
-                        isLoadingOrganisations = false
-                    )
+                    _uiState.update { it.copy(organisations = result.data, isLoadingOrganisations = false) }
                 }
-
                 is Result.Error -> {
-
-                    // ✅ Handle expired session from backend
-                    if (result.message.contains("401") ||
-                        result.message.contains("JWT", ignoreCase = true)
-                    ) {
+                    // Handle expired session from backend but don't wipe guest session!
+                    if (result.message.contains("401") || result.message.contains("JWT", ignoreCase = true)) {
                         tokenManager.clearAll()
                     }
-
-                    _uiState.value = _uiState.value.copy(
-                        isLoadingOrganisations = false,
-                        error = result.message
-                    )
+                    _uiState.update { it.copy(isLoadingOrganisations = false, error = result.message) }
                 }
-
                 else -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoadingOrganisations = false,
-                        error = "Unexpected error"
-                    )
+                    _uiState.update { it.copy(isLoadingOrganisations = false, error = "Unexpected error") }
                 }
             }
         }
     }
 
     fun selectOrganisation(organisation: Organisation) {
-        _uiState.value = _uiState.value.copy(
-            selectedOrganisation = organisation
-        )
+        _uiState.update { it.copy(selectedOrganisation = organisation) }
     }
 
     /* ---------------- LOGIN ---------------- */
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
-
             if (email.isBlank() || password.isBlank()) {
-                _uiState.value = AuthUiState(
-                    error = "Email and password cannot be empty"
-                )
+                _uiState.update { it.copy(error = "Email and password cannot be empty") }
                 return@launch
             }
-
-            _uiState.value = _uiState.value.copy(isLoading = true)
-
+            _uiState.update { it.copy(isLoading = true) }
             when (val result = authRepository.login(email, password)) {
-
                 is Result.Success -> {
-
-                    // ✅ Token already saved in repository
-
-                    // ✅ Just save expiry
+                    tokenManager.saveEmail(email)
                     val expiryTime = System.currentTimeMillis() + (60 * 60 * 1000)
                     tokenManager.saveTokenExpiry(expiryTime)
-
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isSuccess = true
-                    )
-
+                    _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                     registerFcmToken()
                 }
-
                 is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
-
                 else -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "Unexpected error"
-                    )
+                    _uiState.update { it.copy(isLoading = false, error = "Unexpected error") }
                 }
             }
         }
@@ -137,84 +100,44 @@ class AuthViewModel(
 
     /* ---------------- SIGNUP ---------------- */
 
-    fun signup(
-        name: String,
-        email: String,
-        password: String,
-        organisationId: String
-    ) {
+    fun signup(name: String, email: String, password: String, organisationId: String) {
         viewModelScope.launch {
-
             if (name.isBlank() || email.isBlank() || password.isBlank()) {
-                _uiState.value = _uiState.value.copy(
-                    error = "All fields are required"
-                )
+                _uiState.update { it.copy(error = "All fields are required") }
                 return@launch
             }
-
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                error = null
-            )
-
-            when (
-                val result = authRepository.signup(
-                    name,
-                    email,
-                    password,
-                    organisationId
-                )
-            ) {
-
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            when (val result = authRepository.signup(name, email, password, organisationId)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isSuccess = true
-                    )
+                    _uiState.update { it.copy(isLoading = false, isSuccess = true) }
                 }
-
                 is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
                 }
-
                 else -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "Unexpected error"
-                    )
+                    _uiState.update { it.copy(isLoading = false, error = "Unexpected error") }
                 }
             }
         }
     }
 
-    /* ---------------- LOGOUT ---------------- */
-
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
     }
+
+    fun getSavedEmail(): String? = tokenManager.getSavedEmailBlocking()
 
     private fun registerFcmToken() {
         viewModelScope.launch {
             try {
                 val userId = tokenManager.getUserIdBlocking()
                 if (userId.isNullOrBlank()) return@launch
-
-                val fcmToken =
-                    FirebaseMessaging.getInstance().token.await()
-
+                val fcmToken = FirebaseMessaging.getInstance().token.await()
                 notificationApi.registerDevice(
                     com.docuvio.app.data.api.RegisterDeviceRequest(
-                        userId = userId,
-                        token = fcmToken,
-                        platform = "android"
+                        userId = userId, token = fcmToken, platform = "android"
                     )
                 )
-
-                Log.d("FCM", "Token registered to backend")
-
             } catch (e: Exception) {
                 Log.e("FCM", "Failed to register token", e)
             }

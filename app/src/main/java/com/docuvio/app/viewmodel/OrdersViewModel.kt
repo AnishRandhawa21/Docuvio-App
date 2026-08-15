@@ -50,7 +50,7 @@ class OrdersViewModel(
 
                 is Result.Success -> {
 
-                    val allOrders = result.data.data
+                    val allOrders = result.data
 
                     val currentOrders = allOrders.filter {
                         !it.isExpired &&

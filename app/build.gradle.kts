@@ -44,6 +44,16 @@ android {
             "CONVERTER_API_KEY",
             "\"${project.findProperty("CONVERTER_API_KEY")}\""
         )
+        buildConfigField(
+            "String",
+            "SUPABASE_URL",
+            "\"${project.findProperty("SUPABASE_URL")}\""
+        )
+        buildConfigField(
+            "String",
+            "SUPABASE_ANON_KEY",
+            "\"${project.findProperty("SUPABASE_ANON_KEY")}\""
+        )
     }
 
     buildTypes {
@@ -72,22 +82,10 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.foundation)
-    implementation(libs.androidx.material3)
-    // -------------------------
-    // UNIT TESTS
-    // -------------------------
-    testImplementation("junit:junit:4.13.2")
-
     // ===============================
     // COMPOSE BOM
     // ===============================
     implementation(platform(libs.androidx.compose.bom))
-
-    // ===============================
-    // FORCE MATERIAL3 1.3+
-    // ===============================
-    implementation(libs.androidx.material3)
 
     // ===============================
     // COMPOSE CORE
@@ -95,6 +93,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.material3)
     implementation("androidx.compose.material:material-icons-extended")
 
     debugImplementation(libs.androidx.compose.ui.tooling)
@@ -151,26 +150,44 @@ dependencies {
     //Top Notification
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 
-    // -------------------------
-    // ANDROID INSTRUMENTATION TESTS
-    // -------------------------
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-
-// ===============================
-// FIREBASE (FCM)
-// ===============================
+    // ===============================
+    // FIREBASE (FCM)
+    // ===============================
     implementation(platform(libs.firebase.bom))
     implementation("com.google.firebase:firebase-messaging")
 
+    // ===============================
+    // CAMERA & ML KIT
+    // ===============================
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation("androidx.browser:browser:1.8.0") {
+        version {
+            strictly("1.8.0")
+        }
+    }
 
+    // ===============================
+    // SUPABASE
+    // ===============================
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.ktor.client.okhttp)
 
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
-
-// ===============================
-// Play Store API
-// ===============================
+    // ===============================
+    // Play Store API
+    // ===============================
     implementation("com.google.android.play:app-update:2.1.0")
     implementation("com.google.android.play:app-update-ktx:2.1.0")
+
+    // -------------------------
+    // TESTS
+    // -------------------------
+    testImplementation("junit:junit:4.13.2")
     testImplementation(kotlin("test"))
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }

@@ -18,7 +18,13 @@ sealed class Routes(val route: String) {
         fun createRoute(shopId: String) = "createOrder/$shopId"
     }
 
-    object WalkInOrder : Routes("walkInOrder/{shopId}") {
-        fun createRoute(shopId: String) = "walkInOrder/$shopId"
+    object QRScanner : Routes("qrScanner")
+
+    object PrintSession : Routes("printSession/{sessionToken}") {
+        fun createRoute(sessionToken: String) = "printSession/$sessionToken"
+    }
+
+    object DeepLinkHandler : Routes("deeplink/{shopCode}") {
+        fun createRoute(shopCode: String) = "deeplink/$shopCode"
     }
 }

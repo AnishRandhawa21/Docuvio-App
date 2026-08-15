@@ -9,6 +9,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- Android 13+ notification permission -->
     <uses-permission
@@ -72,6 +75,28 @@
                     android:scheme="https"
                     android:host="www.docuvio.co.in"
                     android:pathPrefix="/email-verified"/>
+            </intent-filter>
+
+            <!-- ✅ Print Shop Deep Link (Split for reliable verification) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.docuvio.co.in" android:pathPrefix="/print/shop" />
+            </intent-filter>
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="docuvio.co.in" android:pathPrefix="/print/shop" />
+            </intent-filter>
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="docuvio.in" android:pathPrefix="/print/shop" />
             </intent-filter>
 
         </activity>

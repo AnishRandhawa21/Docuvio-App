@@ -19,6 +19,11 @@ foundationVersion = "1.7.6"
 navigationCompose = "2.8.5"
 firebaseBom = "33.7.0"
 razorpay = "1.6.41"
+camerax = "1.4.1"
+mlkit-barcode = "17.3.0"
+browser = "1.8.0"
+supabase = "2.6.1"
+ktor = "2.3.12"
 
 
 [libraries]
@@ -46,10 +51,19 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 razorpay-checkout = { group = "com.razorpay", name = "checkout", version.ref = "razorpay" }
 
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
-
-

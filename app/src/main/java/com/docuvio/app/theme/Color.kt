@@ -83,3 +83,4 @@ val DeepAmber = Color(0xFFFF8840)
 val GoldenYellow = Color(0xFFFF8C00)
 val NewGreen = Color(0xFF388E3C)
 val AccentYellow = Color(0xFFFDD835)
+val OnlineBlue = Color(0xFF102A43) // Deep Midnight Navy - Very premium on green

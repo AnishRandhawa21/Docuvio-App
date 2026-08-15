@@ -1,6 +1,5 @@
 package com.docuvio.app.core.network
 
-
 import com.docuvio.app.BuildConfig
 import com.docuvio.app.core.auth.TokenManager
 import com.docuvio.app.data.api.AuthApi
@@ -11,17 +10,27 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
+/**
+ * 🌐 ApiClient
+ * Configures OkHttp and Retrofit for the application.
+ * Handles automatic token injection and 401 Unauthorized handling.
+ */
 class ApiClient(
     private val tokenManager: TokenManager,
     private val authApi: AuthApi?,
     private val onUnauthorized: () -> Unit
 ) {
 
+    /**
+     * 🔑 Auth Interceptor
+     * Injects the Bearer token into the headers of every request.
+     */
     private val authInterceptor = Interceptor { chain ->
         val request = chain.request()
 
-        // 🔥 Skip refresh endpoint
-        if (request.url.encodedPath.endsWith("/auth/refresh")) {
+        // 🛡️ Skip refresh and base auth endpoints to avoid loops
+        val path = request.url.encodedPath
+        if (path.endsWith("/auth/refresh") || path.endsWith("/auth/login") || path.endsWith("/auth/register")) {
             return@Interceptor chain.proceed(request)
         }
 
@@ -36,6 +45,10 @@ class ApiClient(
         chain.proceed(newRequest)
     }
 
+    /**
+     * 📊 Logging Interceptor
+     * Logs network activity in Debug builds.
+     */
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = if (BuildConfig.DEBUG)
             HttpLoggingInterceptor.Level.BODY
@@ -43,14 +56,40 @@ class ApiClient(
             HttpLoggingInterceptor.Level.NONE
     }
 
+    /**
+     * 🚀 OkHttpClient Configuration
+     */
     private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
         .addInterceptor(authInterceptor)
+        .addInterceptor(loggingInterceptor)
+        .addInterceptor { chain ->
+            val response = chain.proceed(chain.request())
+            
+            // 🚨 Detect a 401 response that has already been retried
+            // If the Authenticator ran and failed, the response will still be 401.
+            // We check if this is a "prior response" to see if we've already tried to fix it.
+            if (response.code == 401) {
+                val isRetry = response.priorResponse != null
+                val isAuthPath = response.request.url.encodedPath.contains("/auth/")
+                
+                // If it's a 401 on a non-auth path and it's either the 2nd attempt 
+                // OR the Authenticator wasn't even able to return a retry request.
+                if (!isAuthPath && (isRetry || authApi == null)) {
+                    android.util.Log.e("API", "🛑 Persistent 401 detected. Triggering logout.")
+                    onUnauthorized()
+                }
+            }
+            response
+        }
         .apply {
+            // 🔄 Attach the Authenticator if an AuthApi is provided
             authApi?.let {
                 authenticator(AuthAuthenticator(tokenManager, it))
             }
         }
-        .addInterceptor(loggingInterceptor)
         .build()
 
     private val retrofit: Retrofit = Retrofit.Builder()

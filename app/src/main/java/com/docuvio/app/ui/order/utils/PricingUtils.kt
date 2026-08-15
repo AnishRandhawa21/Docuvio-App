@@ -6,8 +6,10 @@ import com.docuvio.app.ui.order.utils.DateUtils.isTomorrowPickup
 object PricingUtils {
 
     fun calculatePlatformFee(documentPrice: Int): Int {
+        if (documentPrice <= 0) return 2 // Minimum base fee
+        
         return when {
-            documentPrice < 20  -> 2
+            documentPrice < 20   -> 2
             documentPrice <= 50  -> 4
             documentPrice <= 80  -> 6
             documentPrice <= 100 -> 9
@@ -19,25 +21,24 @@ object PricingUtils {
     fun calculateDocumentPrice(uiState: CreateOrderUiState): Int {
 
         val basePrice = uiState.selectedPaperType?.basePrice ?: 0
-
         val colorPrice  = uiState.selectedColorMode?.extraPrice ?: 0
         val finishPrice = uiState.selectedFinishType?.extraPrice ?: 0
 
-        val pages  = uiState.pageCount
-        val copies = uiState.copies
+        val pages  = uiState.pageCount.coerceAtLeast(1)
+        val copies = uiState.copies.coerceAtLeast(1)
 
-        if (pages == 0 || copies == 0) return 0
-
+        // Calculate physical sheets
         val sheets = if (uiState.printSide == "double") {
             kotlin.math.ceil(pages / 2.0).toInt()
         } else {
             pages
         }
 
-        // 🔥 ALWAYS USE BASE PRICE
-        val pricePerSheet = basePrice
+        // Cost per sheet = Base + Color + Finish
+        val costPerSheet = basePrice + colorPrice + finishPrice
 
-        return sheets * copies * (pricePerSheet + colorPrice + finishPrice)
+        // Total Document Cost = sheets * copies * costPerSheet
+        return sheets * copies * costPerSheet
     }
 
     fun calculateHandlingFee(uiState: CreateOrderUiState): Int {

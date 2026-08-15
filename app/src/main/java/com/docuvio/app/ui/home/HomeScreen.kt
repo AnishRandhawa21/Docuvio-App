@@ -46,6 +46,7 @@ import com.docuvio.app.theme.*
 import com.docuvio.app.utils.ShopStatusResolver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.QrCodeScanner
 
 // --------------------------------------------------
 // FILTER TYPES
@@ -66,9 +67,11 @@ fun HomeScreen(
     tokenManager: com.docuvio.app.core.auth.TokenManager,
     notificationApi: com.docuvio.app.data.api.NotificationApi,
     onScheduleClick: (String) -> Unit,
-    onOrderNowClick: (String) -> Unit
+    onQRScanClick: () -> Unit,
+    onResumeSession: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val activeSessionToken by tokenManager.guestSessionTokenFlow.collectAsState(initial = null)
 
     LaunchedEffect(Unit) {
         viewModel.loadShops()
@@ -136,143 +139,179 @@ fun HomeScreen(
     }
     // ────────────────────────────────────────────────
 
-    PullToRefreshBox(
-        state = pullToRefreshState,
-        isRefreshing = uiState.isRefreshing,
-        onRefresh = { viewModel.refreshShops() },
-        indicator = {
-            PullToRefreshDefaults.Indicator(
-                state = pullToRefreshState,
-                isRefreshing = uiState.isRefreshing,
-                modifier = Modifier.align(Alignment.TopCenter),
-                containerColor = MaterialTheme.colorScheme.surface,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-    ) {
-        LazyColumn(
-            state = scrollState,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 90.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        PullToRefreshBox(
+            state = pullToRefreshState,
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refreshShops() },
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         ) {
-            // --- SCROLLABLE HEADER (Hides on scroll) ---
-            item {
-                AnimatedVisibility(
-                    visible = searchQuery.isBlank() && selectedFilter == ShopFilter.ALL,
-                    enter = expandVertically(animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)),
-                    exit = shrinkVertically(animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp)
-                            .graphicsLayer {
-                                alpha = headerAlpha
-                                translationY = headerTranslationY
-                            }
+            LazyColumn(
+                state = scrollState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 120.dp)
+            ) {
+                // --- SCROLLABLE HEADER (Hides on scroll) ---
+                item {
+                    AnimatedVisibility(
+                        visible = searchQuery.isBlank() && selectedFilter == ShopFilter.ALL,
+                        enter = expandVertically(animationSpec = tween(500)) + fadeIn(animationSpec = tween(500)),
+                        exit = shrinkVertically(animationSpec = tween(500)) + fadeOut(animationSpec = tween(500))
                     ) {
-                        Spacer(Modifier.height(8.dp))
-                        HomeBrandBanner()
+                        Column(
+                            modifier = Modifier
+                                .padding(horizontal = 8.dp)
+                                .graphicsLayer {
+                                    alpha = headerAlpha
+                                    translationY = headerTranslationY
+                                }
+                        ) {
+                            Spacer(Modifier.height(8.dp))
+                            HomeBrandBanner()
+                        }
                     }
                 }
-            }
 
-            // --- STICKY SEARCH & FILTER (Stays at top) ---
-            stickyHeader {
-                Surface(
-                    color = MaterialTheme.colorScheme.background,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                            FancySearchBar(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                onClearClick = { searchQuery = "" }
+                // --- STICKY SEARCH & FILTER (Stays at top) ---
+                stickyHeader {
+                    Surface(
+                        color = MaterialTheme.colorScheme.background,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                FancySearchBar(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    onClearClick = { searchQuery = "" }
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            FilterChipRow(
+                                selected = selectedFilter,
+                                onSelect = { selectedFilter = it }
                             )
                         }
-                        Spacer(Modifier.height(12.dp))
-                        FilterChipRow(
-                            selected = selectedFilter,
-                            onSelect = { selectedFilter = it }
-                        )
                     }
                 }
-            }
 
-            // --- MAIN CONTENT ---
-            item {
-                Spacer(Modifier.height(4.dp))
-            }
+                // --- MAIN CONTENT ---
+                item {
+                    Spacer(Modifier.height(4.dp))
+                }
 
-            when {
-                uiState.shops.isEmpty() && uiState.error == null -> {
-                    items(6) {
-                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                            SkeletonShopCard()
+                when {
+                    uiState.shops.isEmpty() && uiState.error == null -> {
+                        items(6) {
+                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                SkeletonShopCard()
+                            }
                         }
                     }
-                }
 
-                noSearchResults -> {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillParentMaxHeight(0.7f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    noSearchResults -> {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxHeight(0.7f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Image(
+                                        painter = painterResource(R.drawable.noshop),
+                                        contentDescription = "No shops found"
+                                    )
+                                    Spacer(Modifier.height(12.dp))
+                                    Text(
+                                        text = if (isSearching) "No shops match \"$searchQuery\""
+                                        else "No ${selectedFilter.label.lowercase()} shops right now",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontFamily = Manrope,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    uiState.shops.isEmpty() && uiState.error != null -> {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Image(
-                                    painter = painterResource(R.drawable.noshop),
-                                    contentDescription = "No shops found"
+                                    painter = painterResource(R.drawable.connectionlost),
+                                    contentDescription = "No internet"
                                 )
-                                Spacer(Modifier.height(12.dp))
-                                Text(
-                                    text = if (isSearching) "No shops match \"$searchQuery\""
-                                    else "No ${selectedFilter.label.lowercase()} shops right now",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontFamily = Manrope,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            }
+                        }
+                    }
+
+                    else -> {
+                        items(filteredShops, key = { it.id }) { shop ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp)
+                                    .animateItem()
+                            ) {
+                                ShopCard(
+                                    shop = shop,
+                                    onScheduleClick = { handleNavigate(onScheduleClick, it) }
                                 )
                             }
                         }
                     }
                 }
+            }
+        }
 
-                uiState.shops.isEmpty() && uiState.error != null -> {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillParentMaxSize()
-                                .padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.connectionlost),
-                                contentDescription = "No internet"
-                            )
-                        }
-                    }
-                }
+        // FABs
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 100.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Resume Session FAB
+            AnimatedVisibility(
+                visible = !activeSessionToken.isNullOrBlank(),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
+            ) {
+                ExtendedFloatingActionButton(
+                    onClick = { activeSessionToken?.let { onResumeSession(it) } },
+                    containerColor = BrandOrange,
+                    contentColor = White,
+                    shape = RoundedCornerShape(16.dp),
+                    icon = { Icon(Icons.Outlined.Storefront, contentDescription = null) },
+                    text = { Text("Resume", fontWeight = FontWeight.Bold) }
+                )
+            }
 
-                else -> {
-                    items(filteredShops, key = { it.id }) { shop ->
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                .animateItem()
-                        ) {
-                            ShopCard(
-                                shop = shop,
-                                onScheduleClick = { handleNavigate(onScheduleClick, it) },
-                                onOrderNowClick = { handleNavigate(onOrderNowClick, it) }
-                            )
-                        }
-                    }
-                }
+            // QR Scanner FAB
+            FloatingActionButton(
+                onClick = { onQRScanClick() },
+                containerColor = SuccessGreen,
+                contentColor = White,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR")
             }
         }
     }
