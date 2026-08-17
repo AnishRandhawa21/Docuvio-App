@@ -19,8 +19,12 @@ class DocuvioApp : Application() {
             onUnauthorized = {
                 // Handle 401 - force logout
                 CoroutineScope(Dispatchers.Main).launch {
+                    android.widget.Toast.makeText(
+                        applicationContext,
+                        "Session expired. Please login again.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
                     appContainer.authRepository.logout()
-                    // Navigation will be handled by MainActivity observing token state
                 }
             }
         )

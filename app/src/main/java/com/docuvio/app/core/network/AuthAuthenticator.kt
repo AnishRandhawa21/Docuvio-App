@@ -12,73 +12,86 @@ import okhttp3.Route
 /**
  * 🔄 AuthAuthenticator
  * Automatically handles 401 Unauthorized responses by attempting to refresh the token.
+ * Industry Level: Handles concurrent requests and token invalidation.
  */
 class AuthAuthenticator(
     private val tokenManager: TokenManager,
     private val authApi: AuthApi
 ) : Authenticator {
 
+    companion object {
+        // 🔒 Global lock to prevent multiple simultaneous refresh calls across all instances
+        private val refreshLock = Any()
+    }
+
     override fun authenticate(route: Route?, response: Response): Request? {
         // ❌ Prevent infinite retry loop (max 2 attempts per request)
-        if (responseCount(response) >= 2) return null
+        if (responseCount(response) >= 2) {
+            android.util.Log.e("AUTH", "🛑 Max retry attempts reached. Admitting defeat.")
+            return null
+        }
 
-        // 🔑 Get current tokens
-        val currentAccessToken = tokenManager.getTokenBlocking()
+        // 🔑 Get tokens as they were WHEN THIS REQUEST WAS MADE
+        val requestToken = response.request.header("Authorization")?.removePrefix("Bearer ")?.trim()
         val refreshToken = tokenManager.getRefreshTokenBlocking()
-            ?: return null
 
-        // 🔒 Synchronized block to prevent multiple simultaneous refresh calls
-        synchronized(this) {
+        if (refreshToken.isNullOrBlank()) {
+            android.util.Log.e("AUTH", "❌ No refresh token available.")
+            return null
+        }
+
+        // 🔒 Synchronized block to ensure only one thread performs the actual refresh
+        synchronized(refreshLock) {
             val latestAccessToken = tokenManager.getTokenBlocking()
 
-            // ⚡ Check if the token was already refreshed by another concurrent request
-            val tokenToUse = if (latestAccessToken != currentAccessToken && !latestAccessToken.isNullOrBlank()) {
-                latestAccessToken
-            } else {
-                // 🔄 Perform actual refresh call (Synchronous call required by Authenticator)
-                try {
-                    val refreshResponse = authApi.refreshToken(
-                        RefreshTokenRequest(refreshToken)
-                    ).execute()
-
-                    if (refreshResponse.isSuccessful) {
-                        val body = refreshResponse.body()
-                        if (body != null) {
-                            val newAccess = body.data.access_token
-                            val newRefresh = body.data.refresh_token
-
-                            // 💾 Save new tokens
-                            runBlocking {
-                                tokenManager.saveToken(newAccess)
-                                tokenManager.saveRefreshToken(newRefresh)
-                            }
-                            android.util.Log.d("AUTH", "🔄 Token refreshed successfully")
-                            newAccess
-                        } else null
-                    } else {
-                        android.util.Log.e("AUTH", "❌ Refresh failed: ${refreshResponse.code()}")
-                        null
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("AUTH", "❌ Refresh exception", e)
-                    null
-                }
-            }
-
-            // 🔁 If we have a new/latest token, retry the original request
-            return if (!tokenToUse.isNullOrBlank()) {
-                response.request.newBuilder()
-                    .header("Authorization", "Bearer $tokenToUse")
+            // ⚡ Scenario A: Another thread already refreshed the token while we were waiting
+            // We compare what this request used (requestToken) with what is now in TokenManager.
+            if (!latestAccessToken.isNullOrBlank() && latestAccessToken != requestToken) {
+                android.util.Log.d("AUTH", "⚡ Using already refreshed token for retry.")
+                return response.request.newBuilder()
+                    .header("Authorization", "Bearer $latestAccessToken")
                     .build()
-            } else {
-                null // Give up, will trigger the 401 logout in ApiClient
             }
+
+            // ⚡ Scenario B: We are the first thread to reach the lock. Perform the refresh.
+            android.util.Log.d("AUTH", "🔄 Performing token refresh...")
+            try {
+                val refreshResponse = authApi.refreshToken(
+                    RefreshTokenRequest(refreshToken)
+                ).execute()
+
+                if (refreshResponse.isSuccessful) {
+                    val body = refreshResponse.body()
+                    if (body != null) {
+                        val newAccess = body.data.access_token
+                        val newRefresh = body.data.refresh_token
+
+                        // 💾 Save new tokens immediately
+                        runBlocking {
+                            tokenManager.saveToken(newAccess)
+                            tokenManager.saveRefreshToken(newRefresh)
+                        }
+                        android.util.Log.d("AUTH", "✅ Token refreshed successfully.")
+
+                        return response.request.newBuilder()
+                            .header("Authorization", "Bearer $newAccess")
+                            .build()
+                    }
+                } else if (refreshResponse.code() == 401 || refreshResponse.code() == 403 || refreshResponse.code() == 400) {
+                    // 🔥 Refresh token itself is rejected or expired
+                    android.util.Log.e("AUTH", "🛑 Session killed by server (${refreshResponse.code()}).")
+                    runBlocking { tokenManager.clearAll() }
+                } else {
+                    android.util.Log.e("AUTH", "❌ Refresh call failed with code: ${refreshResponse.code()}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AUTH", "❌ Refresh exception", e)
+            }
+
+            return null // Give up, will trigger the 401 logout in ApiClient
         }
     }
 
-    /**
-     * Helper to track how many times this specific request has been retried.
-     */
     private fun responseCount(response: Response): Int {
         var count = 1
         var prior = response.priorResponse

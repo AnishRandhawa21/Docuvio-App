@@ -12,8 +12,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * 🌐 ApiClient
- * Configures OkHttp and Retrofit for the application.
- * Handles automatic token injection and 401 Unauthorized handling.
+ * Industry Level networking with robust token management and automated recovery.
  */
 class ApiClient(
     private val tokenManager: TokenManager,
@@ -23,14 +22,14 @@ class ApiClient(
 
     /**
      * 🔑 Auth Interceptor
-     * Injects the Bearer token into the headers of every request.
+     * Injects the latest Bearer token from local storage.
      */
     private val authInterceptor = Interceptor { chain ->
         val request = chain.request()
 
-        // 🛡️ Skip refresh and base auth endpoints to avoid loops
+        // 🛡️ Skip specific paths that don't need auth or handle it internally
         val path = request.url.encodedPath
-        if (path.endsWith("/auth/refresh") || path.endsWith("/auth/login") || path.endsWith("/auth/register")) {
+        if (path.contains("/auth/refresh") || path.contains("/auth/login") || path.contains("/auth/register")) {
             return@Interceptor chain.proceed(request)
         }
 
@@ -47,7 +46,6 @@ class ApiClient(
 
     /**
      * 📊 Logging Interceptor
-     * Logs network activity in Debug builds.
      */
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = if (BuildConfig.DEBUG)
@@ -57,7 +55,7 @@ class ApiClient(
     }
 
     /**
-     * 🚀 OkHttpClient Configuration
+     * 🚀 OkHttpClient
      */
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -66,26 +64,29 @@ class ApiClient(
         .addInterceptor(authInterceptor)
         .addInterceptor(loggingInterceptor)
         .addInterceptor { chain ->
-            val response = chain.proceed(chain.request())
+            val request = chain.request()
+            val response = chain.proceed(request)
             
-            // 🚨 Detect a 401 response that has already been retried
-            // If the Authenticator ran and failed, the response will still be 401.
-            // We check if this is a "prior response" to see if we've already tried to fix it.
+            // 🚨 Detecting unauthorized state
             if (response.code == 401) {
-                val isRetry = response.priorResponse != null
-                val isAuthPath = response.request.url.encodedPath.contains("/auth/")
+                val path = request.url.encodedPath
                 
-                // If it's a 401 on a non-auth path and it's either the 2nd attempt 
-                // OR the Authenticator wasn't even able to return a retry request.
-                if (!isAuthPath && (isRetry || authApi == null)) {
-                    android.util.Log.e("API", "🛑 Persistent 401 detected. Triggering logout.")
-                    onUnauthorized()
+                // If it's not a base auth path
+                if (!path.contains("/auth/login") && !path.contains("/auth/register")) {
+                    val isRetry = response.priorResponse != null
+                    
+                    // 🔥 If we still have a 401 after an Authenticator retry, or if it was 
+                    // a path where we don't even have an authenticator (like refresh itself)
+                    if (isRetry || authApi == null || path.contains("/auth/refresh")) {
+                        android.util.Log.e("API", "🛑 Unauthorized. Session expired at $path")
+                        onUnauthorized()
+                    }
                 }
             }
             response
         }
         .apply {
-            // 🔄 Attach the Authenticator if an AuthApi is provided
+            // 🔄 Attach Authenticator only if AuthApi is available (main client)
             authApi?.let {
                 authenticator(AuthAuthenticator(tokenManager, it))
             }

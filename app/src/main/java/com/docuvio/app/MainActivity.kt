@@ -149,6 +149,21 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
 
                 FixSystemBars(route = currentRoute)
 
+                // 🔥 Observer to force logout navigation
+                val isUserLoggedIn by tokenManager.isUserLoggedInFlow.collectAsState(initial = true)
+                
+                LaunchedEffect(isUserLoggedIn) {
+                    if (!isUserLoggedIn) {
+                        // Skip if already on Auth/Splash screens
+                        val authRoutes = setOf(Routes.Login.route, Routes.Signup.route, Routes.Splash.route)
+                        if (currentRoute !in authRoutes && currentRoute != null) {
+                            navController.navigate(Routes.Login.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    }
+                }
+
                 var showTerms by rememberSaveable { 
                     mutableStateOf(!tokenManager.hasAcceptedTermsBlocking()) 
                 }

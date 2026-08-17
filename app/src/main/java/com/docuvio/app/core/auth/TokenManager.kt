@@ -103,6 +103,10 @@ class TokenManager(private val context: Context) {
     val rawGuestSessionTokenFlow: Flow<String?> =
         context.dataStore.data.map { it[GUEST_SESSION_TOKEN_KEY] }
 
+    val isUserLoggedInFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        !prefs[TOKEN_KEY].isNullOrBlank() || !prefs[REFRESH_TOKEN_KEY].isNullOrBlank()
+    }
+
     fun getGuestSessionTokenBlocking(): String? = runBlocking {
         context.dataStore.data.first()[GUEST_SESSION_TOKEN_KEY]
     }
@@ -128,11 +132,11 @@ class TokenManager(private val context: Context) {
         // If no tokens at all -> definitely logged out
         if (token.isNullOrBlank() && refreshToken.isNullOrBlank() && guestToken.isNullOrBlank()) return false
 
-        // If we have a refresh token or guest token -> assume valid
+        // If we have a refresh token or guest token -> assume valid for startup
         if (!refreshToken.isNullOrBlank() || !guestToken.isNullOrBlank()) return true
 
-        // Fallback: check JWT expiry if no refresh token exists
-        val jwtExpiry = token?.let { getJwtExpiry(it) }
+        // Fallback: check JWT expiry if ONLY access token exists
+        val jwtExpiry = if (!token.isNullOrBlank()) getJwtExpiry(token) else null
         return if (jwtExpiry != null) System.currentTimeMillis() < jwtExpiry else false
     }
 
