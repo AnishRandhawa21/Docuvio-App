@@ -19,6 +19,7 @@ object PricingUtils {
     }
 
     fun calculateDocumentPrice(uiState: CreateOrderUiState): Int {
+        if (uiState.selectedFile == null && !uiState.isConverting) return 0
 
         val basePrice = uiState.selectedPaperType?.basePrice ?: 0
         val colorPrice  = uiState.selectedColorMode?.extraPrice ?: 0

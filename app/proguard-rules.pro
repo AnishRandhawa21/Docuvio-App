@@ -1,21 +1,44 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Slf4j missing implementation warning
+-dontwarn org.slf4j.impl.StaticLoggerBinder
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Attributes required for reflection-based libraries (Retrofit, Gson, KSP/KAPT)
+-keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Gson rules
+# Keep all classes in the data model package as they are used for serialization
+-keep class com.docuvio.app.data.model.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep @SerializedName fields
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Keep classes with @SerializedName fields (to ensure Gson can find them)
+-keep @com.google.gson.annotations.SerializedName class *
+
+# Kotlin Serialization rules
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable *;
+}
+-keepclassmembers class * {
+    @kotlinx.serialization.SerialName *;
+}
+# Preserve the companion object and its serializer() method for @Serializable classes
+-keepclassmembers class * {
+    public static ** Companion;
+    public static ** serializer(...);
+}
+
+# Razorpay ProGuard rules
+-keep class com.razorpay.** {*;}
+-dontwarn com.razorpay.**
+-keepclassmembers class * {
+    @com.razorpay.Retain <methods>;
+}
+
+# Retrofit rules
+-dontwarn retrofit2.**
+-keep class retrofit2.** { *; }
+-keepattributes Signature
+-keepattributes Exceptions

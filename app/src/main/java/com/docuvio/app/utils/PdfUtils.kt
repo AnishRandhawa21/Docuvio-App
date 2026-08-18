@@ -7,8 +7,15 @@ import java.io.File
 
 object PdfUtils {
 
-    fun getPdfPageCount(file: File): Int {
-        if (!file.exists() || file.length() == 0L) return 0
+    sealed class PdfResult {
+        data class Success(val pageCount: Int) : PdfResult()
+        object PasswordProtected : PdfResult()
+        data class Error(val message: String) : PdfResult()
+    }
+
+    fun getPdfPageCount(file: File): PdfResult {
+        if (!file.exists()) return PdfResult.Error("File does not exist")
+        if (file.length() == 0L) return PdfResult.Error("File is empty")
         
         var renderer: PdfRenderer? = null
         var descriptor: ParcelFileDescriptor? = null
@@ -20,20 +27,27 @@ object PdfUtils {
             )
             if (descriptor != null) {
                 renderer = PdfRenderer(descriptor)
-                renderer.pageCount
+                PdfResult.Success(renderer.pageCount)
             } else {
-                0
+                PdfResult.Error("Could not open file descriptor")
             }
+        } catch (e: SecurityException) {
+            Log.e("PdfUtils", "PDF is password protected: ${file.name}")
+            PdfResult.PasswordProtected
         } catch (e: Exception) {
-            Log.e("PdfUtils", "Failed to get page count for ${file.name}: ${e.message}")
-            0
+            val msg = e.message ?: "Unknown PDF error"
+            Log.e("PdfUtils", "Failed to get page count for ${file.name}: $msg")
+            
+            if (msg.contains("password", ignoreCase = true)) {
+                PdfResult.PasswordProtected
+            } else {
+                PdfResult.Error("Invalid or corrupted PDF file")
+            }
         } finally {
             try {
                 renderer?.close()
                 descriptor?.close()
-            } catch (e: Exception) {
-                // Ignore closing errors
-            }
+            } catch (_: Exception) {}
         }
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -339,33 +340,134 @@ fun SkeletonOrderCard() {
     val shimmer = rememberShimmerBrush()
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(112.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = OffWhite),
-        elevation = CardDefaults.cardElevation(0.dp)
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(modifier = Modifier.height(18.dp).fillMaxWidth(0.45f).clip(RoundedCornerShape(6.dp)).background(shimmer))
-                Box(modifier = Modifier.height(13.dp).fillMaxWidth(0.3f).clip(RoundedCornerShape(6.dp)).background(shimmer))
-                Box(modifier = Modifier.height(13.dp).fillMaxWidth(0.4f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                // Order No
+                Box(modifier = Modifier.height(20.dp).fillMaxWidth(0.5f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                // ID
+                Box(modifier = Modifier.height(14.dp).fillMaxWidth(0.35f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                // Shop Name
+                Box(modifier = Modifier.height(16.dp).fillMaxWidth(0.6f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                // Date
+                Box(modifier = Modifier.height(14.dp).fillMaxWidth(0.45f).clip(RoundedCornerShape(6.dp)).background(shimmer))
             }
 
-            Box(
-                modifier = Modifier
-                    .height(22.dp)
-                    .width(72.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(shimmer)
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                // Status Chip
+                Box(
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(75.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(shimmer)
+                )
+                
+                Spacer(Modifier.height(10.dp))
+                
+                // Arrow icon
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(shimmer)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SkeletonCurrentOrderCard() {
+    val shimmer = rememberShimmerBrush()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            /* ---------------- HEADER ---------------- */
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Box(modifier = Modifier.height(20.dp).fillMaxWidth(0.55f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                    Box(modifier = Modifier.height(14.dp).fillMaxWidth(0.35f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                    Box(modifier = Modifier.height(18.dp).fillMaxWidth(0.65f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                    Box(modifier = Modifier.height(14.dp).fillMaxWidth(0.5f).clip(RoundedCornerShape(6.dp)).background(shimmer))
+                }
+
+                Box(
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(80.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(shimmer)
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MediumGray.copy(alpha = 0.15f))
+            Spacer(Modifier.height(14.dp))
+
+            /* ---------------- PICKUP ---------------- */
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.height(14.dp).width(65.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+                Spacer(Modifier.width(8.dp))
+                Box(modifier = Modifier.height(14.dp).width(110.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+            }
+
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MediumGray.copy(alpha = 0.15f))
+            Spacer(Modifier.height(14.dp))
+
+            /* ---------------- PRICING & PAYMENT ---------------- */
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.height(14.dp).width(85.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+                Box(modifier = Modifier.height(22.dp).width(55.dp).clip(RoundedCornerShape(6.dp)).background(shimmer))
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.height(14.dp).width(95.dp).clip(RoundedCornerShape(4.dp)).background(shimmer))
+                Box(modifier = Modifier.height(24.dp).width(65.dp).clip(RoundedCornerShape(8.dp)).background(shimmer))
+            }
+
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = MediumGray.copy(alpha = 0.15f))
+            Spacer(Modifier.height(14.dp))
+
+            /* ---------------- DOC SUMMARY ---------------- */
+            Box(modifier = Modifier.height(16.dp).fillMaxWidth(0.85f).clip(RoundedCornerShape(4.dp)).background(shimmer))
         }
     }
 }

@@ -1,63 +1,70 @@
 package com.docuvio.app.data.model
 
+import com.google.gson.annotations.SerializedName
+
 // ---------- REQUESTS ----------
 
 data class LoginRequest(
-    val email: String,
-    val password: String
+    @SerializedName("email") val email: String,
+    @SerializedName("password") val password: String
 )
 
 data class SignupRequest(
-    val name: String,
-    val email: String,
-    val password: String,
-    val role: String = "student",
-    val organisation_id: String
+    @SerializedName("name") val name: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("password") val password: String,
+    @SerializedName("role") val role: String = "student",
+    @SerializedName("organisation_id") val organisation_id: String
 )
 
 
 // ---------- RESPONSES ----------
 
 data class LoginResponse(
-    val data: LoginData
+    @SerializedName("data") val data: LoginData
 )
 
 data class LoginData(
-    val user: User,
-    val session: Session
+    @SerializedName("user") val user: User,
+    @SerializedName("session") val session: Session
 )
 
 data class Session(
-    val access_token: String,
-    val refresh_token: String
+    @SerializedName("access_token") val access_token: String,
+    @SerializedName("refresh_token") val refresh_token: String
 )
 
 // ---------- USER ----------
 
 data class User(
-    val id: String,
-    val email: String,
-    val user_metadata: UserMetadata
+    @SerializedName("id") val id: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("user_metadata") val user_metadata: UserMetadata
 )
 
 data class UserMetadata(
-    val role: String,
-    val name: String? = null
+    @SerializedName("role") val role: String,
+    @SerializedName("name") val name: String? = null
 )
+
 data class OrganisationResponse(
-    val data: List<Organisation>
+    @SerializedName("data") val data: List<Organisation>
 )
+
 data class Organisation(
-    val id: String,
-    val name: String
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String
 )
+
 data class RefreshTokenRequest(
-    val refresh_token: String
+    @SerializedName("refresh_token") val refresh_token: String
 )
+
 data class RefreshTokenResponse(
-    val data: SessionData
+    @SerializedName("data") val data: SessionData
 )
+
 data class SessionData(
-    val access_token: String,
-    val refresh_token: String
+    @SerializedName("access_token") val access_token: String,
+    @SerializedName("refresh_token") val refresh_token: String
 )

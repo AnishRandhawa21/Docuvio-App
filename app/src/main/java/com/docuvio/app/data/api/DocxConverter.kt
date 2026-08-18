@@ -20,8 +20,8 @@ object DocxConverter {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    suspend fun convertToPdf(file: File): File = suspendCancellableCoroutine { continuation ->
-        Log.d("DocxConverter", "convertToPdf called — file: ${file.absolutePath}")
+    suspend fun convertToPdf(file: File, mimeType: String): File = suspendCancellableCoroutine { continuation ->
+        Log.d("DocxConverter", "convertToPdf called — file: ${file.absolutePath}, mime: $mimeType")
         
         if (!file.exists()) {
             continuation.resumeWithException(Exception("Source file not found: ${file.name}"))
@@ -32,14 +32,12 @@ object DocxConverter {
             return@suspendCancellableCoroutine
         }
 
-        val docxMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
                 "file",
                 file.name,
-                file.asRequestBody(docxMimeType.toMediaType())
+                file.asRequestBody(mimeType.toMediaType())
             )
             .build()
 

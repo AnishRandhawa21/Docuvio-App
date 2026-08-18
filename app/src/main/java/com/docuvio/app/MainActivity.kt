@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         val data: android.net.Uri? = intent?.data
         Log.d("DEEP_LINK", "Action: $action, Data: $data")
 
-        requestNotificationPermissionFirstLaunch()
+        requestNotificationPermission()
 
         Checkout.preload(applicationContext)
 
@@ -217,22 +217,16 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
         }
     }
 
-    private fun requestNotificationPermissionFirstLaunch() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
 
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val alreadyAsked = prefs.getBoolean("notification_permission_asked", false)
-        if (alreadyAsked) return
-
-        prefs.edit().putBoolean("notification_permission_asked", true).apply()
-
-        val granted = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!granted) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (!granted) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 

@@ -81,10 +81,12 @@ private fun Modifier.glassRim(cornerPx: Float): Modifier = drawBehind {
 @Composable
 fun FloatingPayBar(
     uiState: CreateOrderUiState,
+    onValidationFailed: () -> Unit = {},
     onSubmit: () -> Unit
 ) {
     val isEnabled = uiState.selectedFile != null &&
             uiState.selectedPaperType != null &&
+            uiState.selectedColorMode != null &&
             uiState.selectedFinishType != null &&
             uiState.pickupAt != null
 
@@ -164,7 +166,10 @@ fun FloatingPayBar(
             SwipeToPayButton(
                 enabled = isEnabled,
                 onSwiped = onSubmit,
-                onAttemptedWhenDisabled = ::triggerShake,
+                onAttemptedWhenDisabled = {
+                    triggerShake()
+                    onValidationFailed()
+                },
                 modifier = Modifier.weight(1f)
             )
         }

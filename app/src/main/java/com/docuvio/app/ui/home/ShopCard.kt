@@ -113,12 +113,12 @@ fun ShopCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Status chip — now color-coded per status
+                // Status chip
                 Box(
                     modifier = Modifier
                         .height(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(statusColor)
+                        .background(if (capabilities.isSystemUnavailable) TextDisabled else statusColor)
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -133,8 +133,11 @@ fun ShopCard(
                     )
                 }
 
-                val timeText = if (isVisuallyActive) "Closes at ${formatTime(shop.closeTime)}"
-                else "Opens at ${formatTime(shop.openTime)}"
+                val timeText = when {
+                    capabilities.isSystemUnavailable -> "Resumes at 6:00 AM"
+                    isVisuallyActive -> "Closes at ${formatTime(shop.closeTime)}"
+                    else -> "Opens at ${formatTime(shop.openTime)}"
+                }
 
                 Box(
                     modifier = Modifier
@@ -149,7 +152,7 @@ fun ShopCard(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Manrope,
-                        color = if (isVisuallyActive) SuccessGreen else TextDisabled,
+                        color = if (isVisuallyActive && !capabilities.isSystemUnavailable) SuccessGreen else TextDisabled,
                         maxLines = 1
                     )
                 }
@@ -165,7 +168,7 @@ fun ShopCard(
                 ImageCompatible3DButton(
                     text = "Schedule",
                     icon = Icons.Outlined.CalendarMonth,
-                    enabled = onlineEnabled,
+                    enabled = onlineEnabled && !capabilities.isSystemUnavailable,
                     onClick = { onScheduleClick(shop.id) },
                     modifier = Modifier.weight(1f)
                 )

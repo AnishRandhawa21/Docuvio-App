@@ -1,0 +1,16 @@
+- [ ] Audit and Prepare ProGuard Rules
+    - [ ] Research specific rules for Razorpay
+    - [ ] Research specific rules for Supabase/Ktor
+    - [ ] Research specific rules for Kotlin Serialization
+- [ ] Implement Build Configuration Changes
+    - [ ] Enable `isMinifyEnabled` and `isShrinkResources` in `app/build.gradle.kts`
+    - [ ] Update `app/proguard-rules.pro` with researched rules
+- [ ] Verification & Build
+    - [ ] Run `./gradlew clean`
+    - [ ] Run `./gradlew assembleRelease`
+    - [ ] Run `./gradlew bundleRelease`
+    - [ ] Check for R8 warnings and errors
+    - [ ] Analyze the generated artifact
+- [ ] Final Documentation
+    - [ ] Create walkthrough.artifact.md
+    - [ ] Summarize changes and results

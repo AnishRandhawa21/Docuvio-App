@@ -47,9 +47,11 @@ fun SelectOptionsContent(
     onDescriptionChange: (String) -> Unit,
     onPickupAtChange: (String) -> Unit,
     onCvModeToggle: () -> Unit,
+    onCancelConversion: () -> Unit,
     onSubmit: () -> Unit
 ) {
     var showInstructions by remember { mutableStateOf(false) }
+    var showValidationErrors by remember { mutableStateOf(false) }
 
     val filteredColorModes = remember(uiState.printOptions) {
         (uiState.printOptions?.colorModes ?: emptyList())
@@ -97,7 +99,11 @@ fun SelectOptionsContent(
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
 
                 // ── Step 1: Upload ───────────────────────
-                OrderStepCard(stepNumber = 1, title = "Upload your document") {
+                OrderStepCard(
+                    stepNumber = 1,
+                    title = "Upload your document",
+                    isError = showValidationErrors && uiState.selectedFile == null && !uiState.isConverting
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -130,14 +136,14 @@ fun SelectOptionsContent(
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     CircularProgressIndicator(
-                                        color = PrimaryGreen,
+                                        color = SuccessGreen,
                                         strokeWidth = 3.dp,
                                         modifier = Modifier.size(36.dp)
                                     )
                                     Spacer(Modifier.height(12.dp))
                                     Text(
-                                        "Converting DOCX → PDF…",
-                                        color = PrimaryGreen,
+                                        "Converting ${uiState.convertingExtension ?: "DOCX"} → PDF…",
+                                        color = SuccessGreen,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 14.sp
                                     )
@@ -147,6 +153,13 @@ fun SelectOptionsContent(
                                         color = MediumGray,
                                         fontSize = 12.sp
                                     )
+                                    Spacer(Modifier.height(16.dp))
+                                    TextButton(
+                                        onClick = onCancelConversion,
+                                        colors = ButtonDefaults.textButtonColors(contentColor = CoralRed)
+                                    ) {
+                                        Text("Cancel", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
 
@@ -166,7 +179,7 @@ fun SelectOptionsContent(
                                         .padding(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        "${uiState.pageCount} pages",
+                                        if (uiState.pageCount == 1) "1 page" else "${uiState.pageCount} pages",
                                         color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -190,23 +203,25 @@ fun SelectOptionsContent(
                             }
 
                             uiState.conversionError != null -> {
+                                val isCancelled = uiState.conversionError == "Operation cancelled"
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center,
                                     modifier = Modifier.padding(horizontal = 24.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Warning,
+                                        imageVector = if (isCancelled) Icons.Default.Check else Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = CoralRed,
+                                        tint = if (isCancelled) MediumGray else CoralRed,
                                         modifier = Modifier.size(32.dp)
                                     )
                                     Spacer(Modifier.height(8.dp))
                                     Text(
-                                        "Conversion failed",
-                                        color = CoralRed,
+                                        uiState.conversionError,
+                                        color = if (isCancelled) MediumGray else CoralRed,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
@@ -250,7 +265,7 @@ fun SelectOptionsContent(
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Accepted: PDF, PNG, JPG, DOCX (Max 100MB)",
+                        "Accepted: PDF,DOCX, XLSX (Max 100MB)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MediumGray,
                         textAlign = TextAlign.Center,
@@ -311,7 +326,8 @@ fun SelectOptionsContent(
                 OrderStepCard(
                     stepNumber = 4,
                     title = "Color mode",
-                    enabled = !uiState.isCvMode
+                    enabled = !uiState.isCvMode,
+                    isError = showValidationErrors && uiState.selectedColorMode == null && !uiState.isCvMode
                 ) {
                     Row(
                         modifier = Modifier
@@ -388,7 +404,11 @@ fun SelectOptionsContent(
                 }
 
                 // ── Step 5: Paper & finish type ──────────
-                OrderStepCard(stepNumber = 5, title = "Paper & finish") {
+                OrderStepCard(
+                    stepNumber = 5,
+                    title = "Paper & finish",
+                    isError = showValidationErrors && (uiState.selectedPaperType == null || uiState.selectedFinishType == null) && !uiState.isCvMode
+                ) {
                     DropdownSection(
                         label = "Paper Type",
                         placeholder = "Select paper size",
@@ -548,7 +568,11 @@ fun SelectOptionsContent(
                 }
 
                 // ── Step 8: Pickup ───────────────────────
-                OrderStepCard(stepNumber = 8, title = "Pickup date & time") {
+                OrderStepCard(
+                    stepNumber = 8,
+                    title = "Pickup date & time",
+                    isError = showValidationErrors && uiState.pickupAt == null
+                ) {
                     uiState.shop?.let { shop ->
                         PickupDateTimeSection(
                             value = uiState.pickupAt,
@@ -604,7 +628,11 @@ fun SelectOptionsContent(
             Spacer(modifier = Modifier.height(90.dp).navigationBarsPadding())
         }
 
-        FloatingPayBar(uiState = uiState, onSubmit = onSubmit)
+        FloatingPayBar(
+            uiState = uiState,
+            onValidationFailed = { showValidationErrors = true },
+            onSubmit = onSubmit
+        )
 
         if (showInstructions) {
             AlertDialog(

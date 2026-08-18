@@ -166,10 +166,14 @@ fun MainScreen(
         }
     ) { paddingValues ->
 
+        val isFullScreenRoute = currentRoute == Routes.Splash.route || 
+                               currentRoute == Routes.Login.route || 
+                               currentRoute == Routes.Signup.route
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())
+                .padding(top = if (isFullScreenRoute) 0.dp else paddingValues.calculateTopPadding())
         ) {
 
             content(Modifier.fillMaxSize())

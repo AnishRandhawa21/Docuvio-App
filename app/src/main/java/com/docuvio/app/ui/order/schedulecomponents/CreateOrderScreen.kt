@@ -175,6 +175,7 @@ fun CreateOrderScreen(
                     onDescriptionChange = viewModel::setDescription,
                     onPickupAtChange = viewModel::setPickupAt,
                     onCvModeToggle = viewModel::toggleCvMode,
+                    onCancelConversion = viewModel::cancelConversion,
                     onSubmit = {
                         if (activity == null) return@SelectOptionsContent
                         viewModel.submitOrder { razorpayOrderId, amount ->

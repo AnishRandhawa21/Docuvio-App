@@ -34,6 +34,24 @@ class SplashViewModel(
                 return@launch
             }
 
+            // 🔐 VERIFICATION: If we have a user session, verify it's still active on the server
+            // This prevents "optimistic" navigation to main with an expired/revoked session.
+            val refreshToken = tokenManager.getRefreshTokenBlocking()
+            if (!refreshToken.isNullOrBlank()) {
+                // Try to fetch orders. This is a strictly authenticated endpoint.
+                // If it fails with 401/403, we know the session is truly dead.
+                val verificationResult = orderRepository.getOrders()
+                if (verificationResult is Result.Error) {
+                    if (verificationResult.message.contains("Session expired", ignoreCase = true)) {
+                        android.util.Log.e("SPLASH", "🛑 Session verification failed: ${verificationResult.message}")
+                        tokenManager.clearAll()
+                        _navigationDestination.value = "login"
+                        return@launch
+                    }
+                    // For other errors (network, 500), we proceed as the app handles offline/errors internally.
+                }
+            }
+
             // 🔍 RECONCILIATION: Check if we have an unverified paid order
             val pendingOrderId = tokenManager.getPendingOrderIdBlocking()
             if (pendingOrderId != null) {

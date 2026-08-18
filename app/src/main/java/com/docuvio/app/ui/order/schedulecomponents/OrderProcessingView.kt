@@ -121,7 +121,7 @@ fun OrderProcessingView(
                             .width(2.dp)
                             .height(14.dp)
                             .background(
-                                if (i < currentIndex) PrimaryGreen.copy(alpha = 0.4f)
+                                if (i < currentIndex) SuccessGreen.copy(alpha = 0.4f)
                                 else AlmostBlack.copy(alpha = 0.1f)
                             )
                     )
@@ -146,7 +146,7 @@ fun OrderProcessingView(
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
             ) {
                 Text("Try Again", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             }
@@ -193,8 +193,8 @@ private fun OrderStepRow(
                 .clip(CircleShape)
                 .background(
                     when (state) {
-                        OrderStepState.Done    -> PrimaryGreen
-                        OrderStepState.Active  -> PrimaryGreen.copy(alpha = 0.15f)
+                        OrderStepState.Done    -> SuccessGreen
+                        OrderStepState.Active  -> SuccessGreen.copy(alpha = 0.15f)
                         OrderStepState.Failed  -> Color(0xFFFFEDED)
                         OrderStepState.Pending -> AlmostBlack.copy(alpha = 0.08f)
                     }
@@ -203,7 +203,7 @@ private fun OrderStepRow(
         ) {
             when (state) {
                 OrderStepState.Done    -> Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                OrderStepState.Active  -> CircularProgressIndicator(color = PrimaryGreen, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                OrderStepState.Active  -> CircularProgressIndicator(color = SuccessGreen, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                 OrderStepState.Failed  -> Icon(Icons.Default.Close, null, tint = Color(0xFFD32F2F), modifier = Modifier.size(14.dp))
                 OrderStepState.Pending -> Unit
             }
@@ -230,8 +230,8 @@ private fun OrderStepRow(
                         .fillMaxWidth()
                         .height(3.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = PrimaryGreen,
-                    trackColor = PrimaryGreen.copy(alpha = 0.15f)
+                    color = SuccessGreen,
+                    trackColor = SuccessGreen.copy(alpha = 0.15f)
                 )
             }
         }
@@ -245,10 +245,10 @@ private fun OrderStepRow(
                 "Done",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PrimaryGreen,
+                color = SuccessGreen,
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .background(PrimaryGreen.copy(alpha = 0.1f))
+                    .background(SuccessGreen.copy(alpha = 0.1f))
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             )
         }
@@ -315,7 +315,7 @@ fun BillBreakdown(
                 text = "₹$total",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = PrimaryGreen
+                color = SuccessGreen
             )
         }
     }

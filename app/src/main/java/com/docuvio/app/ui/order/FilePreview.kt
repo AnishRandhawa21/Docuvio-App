@@ -3,7 +3,9 @@ package com.docuvio.app.ui.order
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.InsertDriveFile
@@ -76,47 +78,66 @@ private fun PdfPreview(
 
     LaunchedEffect(file) {
         val renderedBitmap = withContext(Dispatchers.IO) {
+            var renderer: PdfRenderer? = null
+            var descriptor: ParcelFileDescriptor? = null
 
-            val descriptor =
-                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            try {
+                descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                renderer = PdfRenderer(descriptor)
+                val page = renderer.openPage(0)
 
-            val renderer = PdfRenderer(descriptor)
-            val page = renderer.openPage(0)
+                val bmp = Bitmap.createBitmap(
+                    page.width,
+                    page.height,
+                    Bitmap.Config.ARGB_8888
+                )
 
-            val bmp = Bitmap.createBitmap(
-                page.width,
-                page.height,
-                Bitmap.Config.ARGB_8888
-            )
+                val canvas = android.graphics.Canvas(bmp)
+                canvas.drawColor(android.graphics.Color.WHITE)
 
-// 👇 THIS LINE FIXES YOUR ISSUE
-            val canvas = android.graphics.Canvas(bmp)
-            canvas.drawColor(android.graphics.Color.WHITE)
+                page.render(
+                    bmp,
+                    null,
+                    null,
+                    PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+                )
 
-            page.render(
-                bmp,
-                null,
-                null,
-                PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
-            )
-
-            page.close()
-            renderer.close()
-            descriptor.close()
-
-            bmp
+                page.close()
+                bmp
+            } catch (e: Exception) {
+                Log.e("FilePreview", "Failed to render PDF preview", e)
+                null
+            } finally {
+                try {
+                    renderer?.close()
+                    descriptor?.close()
+                } catch (_: Exception) {}
+            }
         }
 
         bitmap = renderedBitmap
     }
 
-    bitmap?.let {
+    if (bitmap != null) {
         Image(
-            bitmap = it.asImageBitmap(),
+            bitmap = bitmap!!.asImageBitmap(),
             contentDescription = null,
             modifier = modifier,
             contentScale = ContentScale.Fit
         )
+    } else {
+        // Fallback icon for PDF that couldn't be rendered (e.g. password protected)
+        Box(
+            modifier = modifier.background(Color.LightGray.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.InsertDriveFile,
+                contentDescription = null,
+                tint = Color.Gray,
+                modifier = Modifier.size(48.dp)
+            )
+        }
     }
 }
 

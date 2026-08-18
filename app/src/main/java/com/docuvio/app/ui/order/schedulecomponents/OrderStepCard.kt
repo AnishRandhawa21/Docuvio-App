@@ -1,6 +1,7 @@
 package com.docuvio.app.ui.order.schedulecomponents
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ fun OrderStepCard(
     title: String,
     subtitle: String? = null,
     enabled: Boolean = true,
+    isError: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -28,6 +30,10 @@ fun OrderStepCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SurfaceCream)
+            .then(
+                if (isError) Modifier.border(2.dp, CoralRed.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                else Modifier
+            )
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -35,7 +41,13 @@ fun OrderStepCard(
                 modifier = Modifier
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(if (enabled) PrimaryGreen else MediumGray.copy(alpha = 0.3f)),
+                    .background(
+                        when {
+                            isError -> CoralRed
+                            enabled -> PrimaryGreen
+                            else -> MediumGray.copy(alpha = 0.3f)
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

@@ -23,34 +23,34 @@ enum class PrintSessionStatus {
 
 @Serializable
 data class PrintSession(
-    @SerializedName("id") @SerialName("id") val id: String? = null,
-    @SerializedName("token") @SerialName("token") val token: String? = null,
-    @SerializedName("sessionToken") @SerialName("sessionToken") val sessionToken: String? = null, 
-    @SerializedName("shop_id") @SerialName("shop_id") val shopId: String? = null,
-    @SerializedName("status") @SerialName("status") val status: PrintSessionStatus? = null,
-    @SerializedName("quoted_amount") @SerialName("quoted_amount") val quotedAmount: Int? = null,
-    @SerializedName("total_amount") @SerialName("total_amount") val totalAmount: Int? = null, // Keep as fallback
-    @SerializedName("customer_name") @SerialName("customer_name") val customerName: String? = null,
-    @SerializedName("created_at") @SerialName("created_at") val createdAt: String? = null,
-    @SerializedName("expires_at") @SerialName("expires_at") val expiresAt: String? = null,
-    @SerializedName("shop") @SerialName("shop") val shop: Shop? = null
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("token") val token: String? = null,
+    @SerializedName("sessionToken") val sessionToken: String? = null, 
+    @SerializedName("shop_id") val shopId: String? = null,
+    @SerializedName("status") val status: PrintSessionStatus? = null,
+    @SerializedName("quoted_amount") val quotedAmount: Int? = null,
+    @SerializedName("total_amount") val totalAmount: Int? = null,
+    @SerializedName("customer_name") val customerName: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("expires_at") val expiresAt: String? = null,
+    @SerializedName("shop") val shop: Shop? = null
 ) {
     val activeToken: String get() = token ?: sessionToken ?: ""
 }
 
 @Serializable
 data class PrintSessionFile(
-    @SerializedName("id") @SerialName("id") val id: String,
-    @SerializedName("session_id") @SerialName("session_id") val sessionId: String,
-    @SerializedName("file_name") @SerialName("file_name") val fileName: String,
-    @SerializedName("file_url") @SerialName("file_url") val fileUrl: String? = null,
-    @SerializedName("status") @SerialName("status") val status: String
+    @SerializedName("id") val id: String,
+    @SerializedName("session_id") val sessionId: String,
+    @SerializedName("file_name") val fileName: String,
+    @SerializedName("file_url") val fileUrl: String? = null,
+    @SerializedName("status") val status: String
 )
 
 @Serializable
 data class PrintSessionQuote(
-    @SerializedName("total_amount") @SerialName("total_amount") val totalAmount: Int,
-    @SerializedName("currency") @SerialName("currency") val currency: String = "INR"
+    @SerializedName("total_amount") val totalAmount: Int,
+    @SerializedName("currency") val currency: String = "INR"
 )
 
 data class StartSessionResponse(

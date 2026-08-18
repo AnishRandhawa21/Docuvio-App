@@ -26,7 +26,8 @@ import kotlinx.coroutines.Job
 
 data class CreateOrderUiState(
     val isLoading: Boolean = false,
-    val isConverting: Boolean = false,        // ← ADD: shows spinner on file box
+    val isConverting: Boolean = false,
+    val convertingExtension: String? = null,
     val conversionError: String? = null,
     val printOptions: PrintOptions? = null,
     val isCvMode: Boolean = false,
@@ -77,6 +78,7 @@ class CreateOrderViewModel(
 
     private var currentOrderId: String? = null
     private var orderJob: Job? = null
+    private var conversionJob: Job? = null
 
     init {
         loadShop()
@@ -158,6 +160,15 @@ class CreateOrderViewModel(
     fun clearError() { _uiState.update { it.copy(error = null) } }
     fun setError(message: String) { _uiState.update { it.copy(error = message) } }
 
+    fun cancelConversion() {
+        conversionJob?.cancel()
+        _uiState.update { it.copy(
+            isConverting = false, 
+            convertingExtension = null, 
+            conversionError = "Operation cancelled"
+        ) }
+    }
+
     fun setPickupAt(pickupAtIso: String) {
         val handled = isTomorrowPickup(pickupAtIso)
         _uiState.update {
@@ -181,22 +192,24 @@ class CreateOrderViewModel(
                 .also { dest -> file.renameTo(dest) }
         } else file
 
-        val isDocx = renamedFile.extension.lowercase() == "docx" ||
-                canonical.contains("word") ||
-                canonical.contains("officedocument")
+        val extension = renamedFile.extension.lowercase()
+        val isDocx = extension == "docx" || canonical.contains("word")
+        val isExcel = extension == "xlsx" || extension == "xls" || canonical.contains("spreadsheet") || canonical.contains("excel")
+        val isOffice = canonical.contains("officedocument")
 
-        if (isDocx) {
+        if (isDocx || isExcel || isOffice) {
             // Show spinner on file box immediately, clear any old file
             _uiState.update {
                 it.copy(
                     isConverting = true,
+                    convertingExtension = extension.uppercase(),
                     conversionError = null,
                     selectedFile = null,       // clear old preview while converting
                     pageCount = 1
                 )
             }
         } else {
-            // Non-DOCX: just store the file directly, no conversion needed
+            // Non-Office: just store the file directly, no conversion needed
             _uiState.update {
                 it.copy(
                     selectedFile = renamedFile,
@@ -205,30 +218,63 @@ class CreateOrderViewModel(
             }
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
+        conversionJob?.cancel()
+        conversionJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-                val (finalFile, finalMime) = if (isDocx) {
-                    val converted = DocxConverter.convertToPdf(renamedFile)
+                val (finalFile, finalMime) = if (isDocx || isExcel || isOffice) {
+                    val converted = DocxConverter.convertToPdf(renamedFile, canonical)
                     Pair(converted, "application/pdf")
                 } else {
                     Pair(renamedFile, canonical)
                 }
 
-                val pageCount = if (finalMime == "application/pdf")
-                    PdfUtils.getPdfPageCount(finalFile) else 1
-
-                _uiState.update {
-                    it.copy(
-                        isConverting = false,
-                        conversionError = null,
-                        selectedFile = finalFile,
-                        selectedFileMimeType = finalMime,
-                        pageCount = pageCount
-                    )
+                if (finalMime == "application/pdf") {
+                    when (val pdfResult = PdfUtils.getPdfPageCount(finalFile)) {
+                        is PdfUtils.PdfResult.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    isConverting = false,
+                                    conversionError = null,
+                                    selectedFile = finalFile,
+                                    selectedFileMimeType = finalMime,
+                                    pageCount = pdfResult.pageCount
+                                )
+                            }
+                        }
+                        is PdfUtils.PdfResult.PasswordProtected -> {
+                            _uiState.update {
+                                it.copy(
+                                    isConverting = false,
+                                    selectedFile = null,
+                                    conversionError = "This PDF is password protected. Please remove the password and try again."
+                                )
+                            }
+                        }
+                        is PdfUtils.PdfResult.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isConverting = false,
+                                    selectedFile = null,
+                                    conversionError = pdfResult.message
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isConverting = false,
+                            conversionError = null,
+                            selectedFile = finalFile,
+                            selectedFileMimeType = finalMime,
+                            pageCount = 1
+                        )
+                    }
                 }
                 recalculatePricing()
 
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) return@launch
                 _uiState.update {
                     it.copy(
                         isConverting = false,
@@ -479,11 +525,13 @@ class CreateOrderViewModel(
         else -> mime
     }
 
-    private fun mimeToExtension(mime: String): String = when (mime) {
-        "image/jpeg"      -> "jpg"
-        "image/png"       -> "png"
-        "application/pdf" -> "pdf"
-        else              -> "bin"
+    private fun mimeToExtension(mime: String): String = when {
+        mime.contains("jpeg") || mime.contains("jpg") -> "jpg"
+        mime.contains("png") -> "png"
+        mime.contains("pdf") -> "pdf"
+        mime.contains("wordprocessingml.document") || mime.contains("msword") -> "docx"
+        mime.contains("spreadsheetml.sheet") || mime.contains("ms-excel") -> "xlsx"
+        else -> "bin"
     }
 
     private fun isTomorrowPickup(pickupAtIso: String): Boolean {

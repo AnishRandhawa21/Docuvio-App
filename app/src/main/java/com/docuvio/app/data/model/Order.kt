@@ -1,17 +1,18 @@
 package com.docuvio.app.data.model
 
-import android.provider.DocumentsContract
 import com.google.gson.annotations.SerializedName
 
 /* ================= CREATE ORDER ================= */
 
 
 data class CreateOrderRequest(
-
     @SerializedName("shop_id")
     val shopId: String,
 
+    @SerializedName("description")
     val description: String,
+
+    @SerializedName("orientation")
     val orientation: PrintOrientation,
 
     @SerializedName("pickup_at")
@@ -22,11 +23,13 @@ data class CreateOrderRequest(
 )
 
 data class CreateOrderResponse(
+    @SerializedName("id")
     val id: String,
 
     @SerializedName("shop_id")
     val shopId: String,
 
+    @SerializedName("status")
     val status: String
 )
 
@@ -34,10 +37,12 @@ data class CreateOrderResponse(
 
 
 data class UploadResponse(
+    @SerializedName("data")
     val data: UploadData
 )
 
 data class UploadData(
+    @SerializedName("fileKey")
     val fileKey: String
 )
 
@@ -45,25 +50,27 @@ data class UploadData(
 /* ================= ORDERS ================= */
 
 data class OrdersResponse(
+    @SerializedName("data")
     val data: List<Order>
 )
 
 data class Order(
+    @SerializedName("id")
     val id: String,
 
     @SerializedName("order_no")
     val orderNo: String?,
 
+    @SerializedName("status")
     val status: String,
 
+    @SerializedName("orientation")
     val orientation: PrintOrientation?,
-
-//    @SerializedName("is_urgent")
-//    val isUrgent: Boolean?,
 
     @SerializedName("total_price")
     val totalPrice: Int,
 
+    @SerializedName("notes")
     val notes: String?,
 
     @SerializedName("is_paid")
@@ -85,7 +92,7 @@ data class Order(
     val otpVerified: Boolean,
 
     @SerializedName("is_expired")
-    val isExpired: Boolean, // ✅ NEW
+    val isExpired: Boolean,
 
     @SerializedName("is_handled")
     val isHandled: Boolean?,
@@ -93,6 +100,7 @@ data class Order(
     @SerializedName("handling_fee")
     val handlingFee: Int?,
 
+    @SerializedName("documents")
     val documents: List<OrderDocument>?
 )
 
@@ -102,6 +110,7 @@ data class OrderShop(
     @SerializedName("shop_name")
     val shopName: String,
 
+    @SerializedName("block")
     val block: String?
 )
 
@@ -114,6 +123,7 @@ data class OrderDocument(
     @SerializedName("page_count")
     val pageCount: Int?,
 
+    @SerializedName("copies")
     val copies: Int?
 )
 
@@ -150,4 +160,3 @@ fun Order.getTotalPrints(): Int {
         (it.pageCount ?: 0) * (it.copies ?: 1)
     } ?: 0
 }
-

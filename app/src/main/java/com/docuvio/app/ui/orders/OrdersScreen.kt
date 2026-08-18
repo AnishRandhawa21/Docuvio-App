@@ -179,18 +179,18 @@ fun OrdersScreen(
                         uiState.orderHistory
 
                 when {
-
-                    uiState.isLoading &&
-                            uiState.currentOrders.isEmpty() &&
-                            uiState.orderHistory.isEmpty() -> {
-
+                    uiState.isLoading && orders.isEmpty() -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(6) {
-                                SkeletonOrderCard()
+                            items(5) {
+                                if (selectedTab == 0) {
+                                    SkeletonCurrentOrderCard()
+                                } else {
+                                    SkeletonOrderCard()
+                                }
                             }
                         }
                     }
@@ -200,10 +200,9 @@ fun OrdersScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = uiState.error!!,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = CoralRed
+                            Image(
+                                painter = painterResource(R.drawable.no_connection),
+                                contentDescription = "No internet"
                             )
                         }
                     }
@@ -215,7 +214,7 @@ fun OrdersScreen(
                         ) {
 
                             Image(
-                                painter = painterResource(id = R.drawable.no_order),
+                                painter = painterResource(id = R.drawable.no_orders),
                                 contentDescription = "NO_Order",
                             )
                         }

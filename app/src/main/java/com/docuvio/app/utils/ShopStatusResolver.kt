@@ -2,8 +2,6 @@ package com.docuvio.app.utils
 
 import androidx.compose.ui.graphics.Color
 import com.docuvio.app.data.model.Shop
-import com.docuvio.app.theme.DarkBlue
-import com.docuvio.app.theme.SoftBlue
 import com.docuvio.app.theme.SuccessGreen
 import com.docuvio.app.theme.DeepAmber
 import com.docuvio.app.theme.SoftGreen
@@ -20,7 +18,8 @@ object ShopStatusResolver {
         val onlineEnabled: Boolean,
         val bannerText: String,
         val bannerBg: Color,
-        val bannerTextColor: Color
+        val bannerTextColor: Color,
+        val isSystemUnavailable: Boolean = false
     )
 
     fun resolve(shop: Shop): Capabilities {
@@ -30,9 +29,10 @@ object ShopStatusResolver {
             return Capabilities(
                 walkInEnabled = false,
                 onlineEnabled = false,
-                bannerText = "RESUMES 6 AM",   // shortened from "Services resume at 6:00 AM"
-                bannerBg = SoftBlue,
-                bannerTextColor = DarkBlue
+                bannerText = "OFFLINE",
+                bannerBg = DarkGray.copy(alpha = 0.2f),
+                bannerTextColor = White,
+                isSystemUnavailable = true
             )
         }
 

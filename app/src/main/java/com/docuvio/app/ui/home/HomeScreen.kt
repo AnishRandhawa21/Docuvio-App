@@ -159,6 +159,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background),
+                userScrollEnabled = uiState.error == null, // Disable scrolling when in error state
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 120.dp)
             ) {
@@ -212,6 +213,23 @@ fun HomeScreen(
                 }
 
                 when {
+                    // --- NO INTERNET ERROR STATE ---
+                    uiState.shops.isEmpty() && uiState.error != null -> {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxHeight(0.7f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(R.drawable.no_connection),
+                                    contentDescription = "No internet"
+                                )
+                            }
+                        }
+                    }
+
                     uiState.shops.isEmpty() && uiState.error == null -> {
                         items(6) {
                             Box(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -230,7 +248,7 @@ fun HomeScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Image(
-                                        painter = painterResource(R.drawable.noshop),
+                                        painter = painterResource(R.drawable.no_shop),
                                         contentDescription = "No shops found"
                                     )
                                     Spacer(Modifier.height(12.dp))
@@ -242,22 +260,6 @@ fun HomeScreen(
                                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                                     )
                                 }
-                            }
-                        }
-                    }
-
-                    uiState.shops.isEmpty() && uiState.error != null -> {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillParentMaxSize()
-                                    .padding(horizontal = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(R.drawable.connectionlost),
-                                    contentDescription = "No internet"
-                                )
                             }
                         }
                     }
