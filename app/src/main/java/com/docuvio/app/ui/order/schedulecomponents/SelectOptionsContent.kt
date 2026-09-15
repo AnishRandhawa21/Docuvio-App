@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.data.model.*
 import com.docuvio.app.theme.*
+import com.docuvio.app.tutorial.tutorialTarget
 import com.docuvio.app.ui.order.FilePreview
 import com.docuvio.app.ui.order.utils.DateUtils.isTomorrowPickup
 import com.docuvio.app.ui.order.utils.FloatingPayBar
@@ -102,7 +103,8 @@ fun SelectOptionsContent(
                 OrderStepCard(
                     stepNumber = 1,
                     title = "Upload your document",
-                    isError = showValidationErrors && uiState.selectedFile == null && !uiState.isConverting
+                    isError = showValidationErrors && uiState.selectedFile == null && !uiState.isConverting,
+                    modifier = Modifier.tutorialTarget("upload_step")
                 ) {
                     Box(
                         modifier = Modifier
@@ -319,7 +321,11 @@ fun SelectOptionsContent(
                     title = "CV Mode",
                     subtitle = "Auto-selects bond paper for resumes"
                 ) {
-                    CvModeToggle(isEnabled = uiState.isCvMode, onToggle = onCvModeToggle)
+                    CvModeToggle(
+                        isEnabled = uiState.isCvMode,
+                        onToggle = onCvModeToggle,
+                        modifier = Modifier.tutorialTarget("cv_toggle")
+                    )
                 }
 
                 // ── Step 4: Color mode ───────────────────

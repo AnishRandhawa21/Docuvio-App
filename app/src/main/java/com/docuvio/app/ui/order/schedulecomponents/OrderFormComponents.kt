@@ -22,10 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.theme.*
+import com.docuvio.app.tutorial.LocalTutorialController
 import androidx.compose.foundation.BorderStroke
 
 @Composable
-fun CvModeToggle(isEnabled: Boolean, onToggle: () -> Unit) {
+fun CvModeToggle(isEnabled: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    val tutorialController = LocalTutorialController.current
+
     val bgColor by androidx.compose.animation.animateColorAsState(
         targetValue = if (isEnabled) PrimaryGreen else Color.Transparent,
         animationSpec = androidx.compose.animation.core.tween(250),
@@ -43,7 +46,7 @@ fun CvModeToggle(isEnabled: Boolean, onToggle: () -> Unit) {
     )
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
             .clip(RoundedCornerShape(12.dp))
@@ -53,7 +56,10 @@ fun CvModeToggle(isEnabled: Boolean, onToggle: () -> Unit) {
                 color = borderColor,
                 shape = RoundedCornerShape(12.dp)
             )
-            .clickable(onClick = onToggle)
+            .clickable(onClick = {
+                tutorialController?.onRealInteraction("cv_toggle")
+                onToggle()
+            })
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween

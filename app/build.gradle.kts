@@ -1,17 +1,24 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
-
 }
-val baseUrl: String =
-    project.findProperty("BASE_URL") as? String
-        ?: error("BASE_URL is missing in local.properties")
 
-val razorpayKeyId: String =
-    project.findProperty("RAZORPAY_KEY_ID") as? String
-        ?: error("RAZORPAY_KEY_ID is missing in gradle.properties")
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use {
+        localProperties.load(it)
+    }
+}
+
+fun getLocalProperty(key: String): String {
+    return localProperties.getProperty(key) ?: ""
+}
+
 android {
     namespace = "com.docuvio.app"
     compileSdk = 36
@@ -23,37 +30,12 @@ android {
         versionCode = 10
         versionName = "1.2.1"
 
-        buildConfigField(
-            "String",
-            "BASE_URL",
-            "\"$baseUrl\""
-        )
-        buildConfigField(
-            "String",
-            "RAZORPAY_KEY_ID",
-            "\"$razorpayKeyId\""
-        )
-        buildConfigField(
-            "String",
-            "CONVERTER_URL",
-            "\"${project.findProperty("CONVERTER_URL")}\""
-        )
-
-        buildConfigField(
-            "String",
-            "CONVERTER_API_KEY",
-            "\"${project.findProperty("CONVERTER_API_KEY")}\""
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_URL",
-            "\"${project.findProperty("SUPABASE_URL")}\""
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_ANON_KEY",
-            "\"${project.findProperty("SUPABASE_ANON_KEY")}\""
-        )
+        buildConfigField("String", "BASE_URL", "\"${getLocalProperty("BASE_URL")}\"")
+        buildConfigField("String", "RAZORPAY_KEY_ID", "\"${getLocalProperty("RAZORPAY_KEY_ID")}\"")
+        buildConfigField("String", "CONVERTER_URL", "\"${getLocalProperty("CONVERTER_URL")}\"")
+        buildConfigField("String", "CONVERTER_API_KEY", "\"${getLocalProperty("CONVERTER_API_KEY")}\"")
+        buildConfigField("String", "SUPABASE_URL", "\"${getLocalProperty("SUPABASE_URL")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${getLocalProperty("SUPABASE_ANON_KEY")}\"")
     }
 
     buildTypes {

@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.data.model.Shop
 import com.docuvio.app.theme.*
+import com.docuvio.app.tutorial.LocalTutorialController
+import com.docuvio.app.tutorial.tutorialTarget
 import com.docuvio.app.ui.order.utils.formatTime
 import com.docuvio.app.utils.ShopStatusResolver
 import kotlinx.coroutines.launch
@@ -28,8 +30,10 @@ import androidx.compose.material.icons.outlined.ShoppingBag
 @Composable
 fun ShopCard(
     shop: Shop,
-    onScheduleClick: (String) -> Unit
+    onScheduleClick: (String) -> Unit,
+    isTutorialTarget: Boolean = false
 ) {
+    val tutorialController = LocalTutorialController.current
     val capabilities = ShopStatusResolver.resolve(shop)
     val walkInEnabled = capabilities.walkInEnabled
     val onlineEnabled = capabilities.onlineEnabled
@@ -51,7 +55,8 @@ fun ShopCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .then(if (isTutorialTarget) Modifier.tutorialTarget("shop_card") else Modifier),
         shape = RoundedCornerShape(32.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -169,8 +174,15 @@ fun ShopCard(
                     text = "Schedule",
                     icon = Icons.Outlined.CalendarMonth,
                     enabled = onlineEnabled && !capabilities.isSystemUnavailable,
-                    onClick = { onScheduleClick(shop.id) },
-                    modifier = Modifier.weight(1f)
+                    onClick = {
+                        if (isTutorialTarget) {
+                            tutorialController?.onRealInteraction("schedule_button")
+                        }
+                        onScheduleClick(shop.id)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(if (isTutorialTarget) Modifier.tutorialTarget("schedule_button") else Modifier)
                 )
             }
         }

@@ -28,6 +28,7 @@ import com.docuvio.app.ui.navigation.Routes
 import com.docuvio.app.theme.AlmostBlack
 import com.docuvio.app.theme.Cream
 import com.docuvio.app.theme.SoftPink
+import com.docuvio.app.tutorial.tutorialTarget
 
 data class BottomNavItem(
     val route: String,
@@ -130,7 +131,7 @@ fun MainScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                bottomNavItems.forEach { item ->
+                                bottomNavItems.forEachIndexed { index, item ->
                                     val selected = currentRoute == item.route
 
                                     IconButton(
@@ -148,7 +149,9 @@ fun MainScreen(
                                                 }
                                             }
                                         },
-                                        modifier = Modifier.size(52.dp)
+                                        modifier = Modifier
+                                            .size(52.dp)
+                                            .then(if (index == 1) Modifier.tutorialTarget("orders_tab") else Modifier)
                                     ) {
                                         Icon(
                                             imageVector = item.icon,

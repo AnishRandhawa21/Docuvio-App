@@ -23,10 +23,11 @@ fun OrderStepCard(
     subtitle: String? = null,
     enabled: Boolean = true,
     isError: Boolean = false,
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SurfaceCream)

@@ -39,6 +39,20 @@ class TokenManager(private val context: Context) {
         private val HAS_ACCEPTED_TERMS_KEY = booleanPreferencesKey("has_accepted_terms")
         private val PENDING_ORDER_ID_KEY = stringPreferencesKey("pending_order_id")
         private val PENDING_ORDER_TYPE_KEY = stringPreferencesKey("pending_order_type")
+        private val TUTORIAL_COMPLETED_KEY = booleanPreferencesKey("tutorial_completed")
+    }
+
+    /* ---------------- TUTORIAL ---------------- */
+
+    suspend fun setTutorialCompleted(completed: Boolean) {
+        context.dataStore.edit { it[TUTORIAL_COMPLETED_KEY] = completed }
+    }
+
+    val isTutorialCompletedFlow: Flow<Boolean> =
+        context.dataStore.data.map { it[TUTORIAL_COMPLETED_KEY] ?: false }
+
+    fun isTutorialCompletedBlocking(): Boolean = runBlocking {
+        context.dataStore.data.first()[TUTORIAL_COMPLETED_KEY] ?: false
     }
 
     /* ---------------- SAVED CREDENTIALS ---------------- */

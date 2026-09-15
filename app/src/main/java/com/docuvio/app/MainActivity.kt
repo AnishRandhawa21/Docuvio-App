@@ -48,6 +48,11 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.docuvio.app.ui.main.DocuvioLoadingAnimation
 import com.docuvio.app.ui.main.FixSystemBars
+import com.docuvio.app.tutorial.TutorialController
+import com.docuvio.app.tutorial.TutorialOverlay
+import com.docuvio.app.tutorial.TutorialViewModel
+import com.docuvio.app.tutorial.LocalTutorialController
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
@@ -144,8 +149,24 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
             LovelyPrintsTheme {
                 val scope = rememberCoroutineScope()
                 val navController = rememberNavController()
+                
+                // --- Tutorial Integration ---
+                val tutorialController = remember {
+                    TutorialController(
+                        tokenManager = tokenManager,
+                        scope = scope,
+                        onNavigate = { route -> navController.navigate(route) }
+                    )
+                }
+                val tutorialViewModel = remember { TutorialViewModel(tutorialController) }
+                
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
+
+                LaunchedEffect(currentRoute) {
+                    tutorialController.onRouteChanged(currentRoute)
+                }
+                // ----------------------------
 
                 FixSystemBars(route = currentRoute)
 
@@ -169,47 +190,51 @@ class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
                 }
                 var isTransitioning by remember { mutableStateOf(false) }
 
-                Box {
-                    MainScreen(navController) { padding ->
-                        AppNavHost(
-                            navController = navController,
-                            startDestination = Routes.Splash.route,
-                            appContainer = (application as DocuvioApp).appContainer,
-                            modifier = padding
-                        )
-                    }
+                CompositionLocalProvider(LocalTutorialController provides tutorialController) {
+                    TutorialOverlay(viewModel = tutorialViewModel) {
+                        Box {
+                            MainScreen(navController) { padding ->
+                                AppNavHost(
+                                    navController = navController,
+                                    startDestination = Routes.Splash.route,
+                                    appContainer = (application as DocuvioApp).appContainer,
+                                    modifier = padding
+                                )
+                            }
 
-                    if (showTerms) {
-                        TermsScreen(
-                            onAccept = {
-                                isTransitioning = true
-                                scope.launch {
-                                    tokenManager.saveTermsAccepted(true)
-                                    showTerms = false
+                            if (showTerms) {
+                                TermsScreen(
+                                    onAccept = {
+                                        isTransitioning = true
+                                        scope.launch {
+                                            tokenManager.saveTermsAccepted(true)
+                                            showTerms = false
+                                        }
+                                    }
+                                )
+                            }
+
+                            AnimatedVisibility(
+                                visible = isTransitioning,
+                                enter = fadeIn(),
+                                exit = fadeOut()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.background),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    DocuvioLoadingAnimation()
                                 }
                             }
-                        )
-                    }
 
-                    AnimatedVisibility(
-                        visible = isTransitioning,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            DocuvioLoadingAnimation()
-                        }
-                    }
-
-                    if (isTransitioning) {
-                        LaunchedEffect(Unit) {
-                            kotlinx.coroutines.delay(1000)
-                            isTransitioning = false
+                            if (isTransitioning) {
+                                LaunchedEffect(Unit) {
+                                    delay(1000)
+                                    isTransitioning = false
+                                }
+                            }
                         }
                     }
                 }

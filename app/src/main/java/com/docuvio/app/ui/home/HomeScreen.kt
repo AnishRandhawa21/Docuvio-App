@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.docuvio.app.firebase.registerFcmToken
 import com.docuvio.app.theme.*
+import com.docuvio.app.tutorial.tutorialTarget
 import com.docuvio.app.utils.ShopStatusResolver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -265,7 +266,8 @@ fun HomeScreen(
                     }
 
                     else -> {
-                        items(filteredShops, key = { it.id }) { shop ->
+                        items(filteredShops.size) { index ->
+                            val shop = filteredShops[index]
                             Box(
                                 modifier = Modifier
                                     .padding(horizontal = 16.dp)
@@ -273,7 +275,8 @@ fun HomeScreen(
                             ) {
                                 ShopCard(
                                     shop = shop,
-                                    onScheduleClick = { handleNavigate(onScheduleClick, it) }
+                                    onScheduleClick = { handleNavigate(onScheduleClick, it) },
+                                    isTutorialTarget = index == 0
                                 )
                             }
                         }
@@ -311,7 +314,8 @@ fun HomeScreen(
                 onClick = { onQRScanClick() },
                 containerColor = SuccessGreen,
                 contentColor = White,
-                shape = CircleShape
+                shape = CircleShape,
+                modifier = Modifier.tutorialTarget("qr_fab")
             ) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan QR")
             }
@@ -348,7 +352,8 @@ fun FilterChipRow(
 ) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.tutorialTarget("filter_row")
     ) {
         items(ShopFilter.entries.toTypedArray()) { filter ->
             val isSelected = filter == selected
